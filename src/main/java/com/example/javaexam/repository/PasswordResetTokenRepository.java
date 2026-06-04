@@ -1,7 +1,6 @@
 package com.example.javaexam.repository;
 
-import com.example.javaexam.model.User;
-import com.example.javaexam.model.VerificationToken;
+import com.example.javaexam.model.PasswordResetToken;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,13 +8,11 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface VerificationTokenRepository extends JpaRepository<VerificationToken, Long> {
+public interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken, Long> {
 
-    Optional<VerificationToken> findByToken(String token);
-
-    Optional<VerificationToken> findFirstByUserOrderByCreatedAtDesc(User user);
+    Optional<PasswordResetToken> findByToken(String token);
 
     @Modifying
-    @Query("DELETE FROM VerificationToken t WHERE t.expiresAt < :now")
+    @Query("DELETE FROM PasswordResetToken t WHERE t.expiresAt < :now")
     int deleteAllExpired(@Param("now") LocalDateTime now);
 }

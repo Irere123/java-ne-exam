@@ -2,6 +2,8 @@ package com.example.javaexam.controller;
 
 import com.example.javaexam.dto.MessageResponse;
 import com.example.javaexam.model.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Account", description = "Endpoints that require a valid JWT")
 public class MeController {
 
     @GetMapping("/me")
+    @Operation(summary = "Return the authenticated user's profile")
     public Map<String, Object> currentUser(@AuthenticationPrincipal User user) {
         Map<String, Object> profile = new LinkedHashMap<>();
         profile.put("id", user.getId());
@@ -37,6 +41,7 @@ public class MeController {
 
     @GetMapping("/admin/ping")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin-only endpoint (requires ROLE_ADMIN)")
     public MessageResponse adminOnly() {
         return new MessageResponse("Hello ADMIN — this endpoint requires ROLE_ADMIN.");
     }

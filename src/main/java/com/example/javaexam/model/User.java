@@ -66,6 +66,15 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = false;
 
+    /**
+     * Incremented to invalidate every access and refresh token the user holds.
+     * Tokens embed the version they were issued with; a mismatch is rejected.
+     * Bumped by logout-all, change-password, and password reset.
+     */
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private int tokenVersion = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

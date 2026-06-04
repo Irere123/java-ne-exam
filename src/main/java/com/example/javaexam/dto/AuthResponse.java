@@ -2,11 +2,13 @@ package com.example.javaexam.dto;
 
 import com.example.javaexam.model.Role;
 
-/** Returned from {@code POST /api/auth/login} on success. */
+/** Token pair returned from login, refresh, and change-password. */
 public record AuthResponse(
-        String token,
+        String accessToken,
+        String refreshToken,
         String tokenType,
-        long expiresInMs,
+        long accessExpiresInMs,
+        long refreshExpiresInMs,
         String email,
         Role role
 ) {}

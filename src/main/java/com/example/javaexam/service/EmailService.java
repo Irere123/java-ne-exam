@@ -39,4 +39,24 @@ public class EmailService {
         mailSender.send(message);
         log.info("Verification email sent to {}", to);
     }
+
+    public void sendPasswordResetEmail(String to, String firstName, String resetUrl) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to);
+        message.setSubject("Reset your password");
+        message.setText("""
+                Hi %s,
+
+                We received a request to reset your password. Use the link below to choose a new one:
+
+                %s
+
+                This link expires shortly. If you did not request a password reset, you can safely
+                ignore this email and your password will remain unchanged.
+                """.formatted(firstName, resetUrl));
+
+        mailSender.send(message);
+        log.info("Password-reset email sent to {}", to);
+    }
 }

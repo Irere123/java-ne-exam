@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *
  * <ul>
  *   <li>{@code /api/auth/**} is public (register / verify / login / resend).</li>
+ *   <li>The Swagger UI and OpenAPI docs are public.</li>
  *   <li>{@code /api/admin/**} requires the {@code ADMIN} role.</li>
  *   <li>Everything else requires a valid JWT.</li>
  * </ul>
@@ -40,6 +41,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session

@@ -1,19 +1,22 @@
 package com.example.javaexam.service;
 
 import com.example.javaexam.dto.AuthResponse;
+import com.example.javaexam.dto.ChangePasswordRequest;
 import com.example.javaexam.dto.LoginRequest;
 import com.example.javaexam.dto.MessageResponse;
 import com.example.javaexam.dto.RegisterRequest;
 import com.example.javaexam.exception.EmailAlreadyUsedException;
+import com.example.javaexam.exception.InvalidPasswordException;
+import com.example.javaexam.exception.PasswordResetException;
 import com.example.javaexam.exception.VerificationException;
+import com.example.javaexam.model.PasswordResetToken;
 import com.example.javaexam.model.Role;
 import com.example.javaexam.model.User;
 import com.example.javaexam.model.VerificationToken;
+import com.example.javaexam.repository.PasswordResetTokenRepository;
 import com.example.javaexam.repository.UserRepository;
 import com.example.javaexam.repository.VerificationTokenRepository;
-import com.example.javaexam.security.JwtService;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +28,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Core authentication logic: registration, email verification, resending
- * verification, and login (JWT issuance).
+ * Account-centric authentication flows: registration, email verification,
+ * login, change password, logout-all, and the forgot/reset password cycle.
+ * Token issuance and refresh-token lifecycle live in {@link TokenService}.
  */
 @Service
 @RequiredArgsConstructor
@@ -34,10 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final VerificationTokenRepository tokenRepository;
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
+    private final TokenService tokenService;
     private final EmailService emailService;
 
     @Value("${app.base-url}")
@@ -46,9 +51,11 @@ public class AuthService {
     @Value("${app.verification.expiration-minutes}")
     private long verificationExpirationMinutes;
 
-    /**
-     * Registers a new (disabled) user and emails them a verification link.
-     */
+    @Value("${app.password-reset.expiration-minutes}")
+    private long passwordResetExpirationMinutes;
+
+    // --- Registration & verification --------------------------------------
+
     @Transactional
     public MessageResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
@@ -73,12 +80,9 @@ public class AuthService {
                 "Registration successful. Check your email to verify your account.");
     }
 
-    /**
-     * Confirms a verification token and enables the associated account.
-     */
     @Transactional
     public MessageResponse verify(String token) {
-        VerificationToken verificationToken = tokenRepository.findByToken(token)
+        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new VerificationException("Invalid verification token"));
 
         if (verificationToken.isConfirmed()) {
@@ -93,15 +97,12 @@ public class AuthService {
         userRepository.save(user);
 
         verificationToken.setConfirmedAt(LocalDateTime.now());
-        tokenRepository.save(verificationToken);
+        verificationTokenRepository.save(verificationToken);
 
         log.info("Verified email for user {}", user.getEmail());
         return new MessageResponse("Email verified successfully. You can now log in.");
     }
 
-    /**
-     * Issues a fresh verification token for an existing, not-yet-verified user.
-     */
     @Transactional
     public MessageResponse resendVerification(String rawEmail) {
         String email = rawEmail.trim().toLowerCase();
@@ -116,8 +117,10 @@ public class AuthService {
         return new MessageResponse("A new verification email has been sent.");
     }
 
+    // --- Login ------------------------------------------------------------
+
     /**
-     * Authenticates credentials and returns a signed JWT. Spring Security
+     * Authenticates credentials and returns a token pair. Spring Security
      * rejects unverified accounts (the {@code enabled} flag) automatically.
      */
     public AuthResponse login(LoginRequest request) {
@@ -129,15 +132,97 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
 
-        String token = jwtService.generateToken(Map.of("role", user.getRole().name()), user);
-
-        return new AuthResponse(
-                token,
-                "Bearer",
-                jwtService.getExpirationMs(),
-                user.getEmail(),
-                user.getRole());
+        return tokenService.issueTokens(user);
     }
+
+    // --- Password management ----------------------------------------------
+
+    /**
+     * Changes the password of an authenticated user. Bumps the token version
+     * (signing out every other session) and returns a fresh token pair so the
+     * current device stays signed in.
+     */
+    @Transactional
+    public AuthResponse changePassword(String email, ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new InvalidPasswordException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.save(user);
+
+        log.info("Password changed for {}", email);
+        return tokenService.issueTokens(user);
+    }
+
+    /** Revokes every session for the user by bumping the token version. */
+    @Transactional
+    public MessageResponse logoutAll(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
+
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.save(user);
+
+        log.info("All sessions revoked for {}", email);
+        return new MessageResponse("Signed out of all devices.");
+    }
+
+    /**
+     * Starts the forgot-password flow. Always reports success to avoid
+     * revealing whether an account exists for the given email.
+     */
+    @Transactional
+    public MessageResponse forgotPassword(String rawEmail) {
+        String email = rawEmail.trim().toLowerCase();
+
+        userRepository.findByEmail(email).ifPresent(user -> {
+            String token = UUID.randomUUID().toString();
+            PasswordResetToken resetToken = PasswordResetToken.builder()
+                    .token(token)
+                    .user(user)
+                    .expiresAt(LocalDateTime.now().plusMinutes(passwordResetExpirationMinutes))
+                    .build();
+            passwordResetTokenRepository.save(resetToken);
+
+            String resetUrl = baseUrl + "/reset-password?token=" + token;
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), resetUrl);
+        });
+
+        return new MessageResponse(
+                "If an account exists for that email, a password-reset link has been sent.");
+    }
+
+    /** Completes the forgot-password flow and signs out all existing sessions. */
+    @Transactional
+    public MessageResponse resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new PasswordResetException("Invalid password-reset token"));
+
+        if (resetToken.isUsed()) {
+            throw new PasswordResetException("This reset link has already been used");
+        }
+        if (resetToken.isExpired()) {
+            throw new PasswordResetException("This reset link has expired. Please request a new one.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.save(user);
+
+        resetToken.setUsedAt(LocalDateTime.now());
+        passwordResetTokenRepository.save(resetToken);
+
+        log.info("Password reset for {}", user.getEmail());
+        return new MessageResponse("Password updated successfully. You can now log in.");
+    }
+
+    // --- Helpers ----------------------------------------------------------
 
     private void sendVerificationToken(User user) {
         String token = UUID.randomUUID().toString();
@@ -146,7 +231,7 @@ public class AuthService {
                 .user(user)
                 .expiresAt(LocalDateTime.now().plusMinutes(verificationExpirationMinutes))
                 .build();
-        tokenRepository.save(verificationToken);
+        verificationTokenRepository.save(verificationToken);
 
         String verificationUrl = baseUrl + "/api/auth/verify?token=" + token;
         emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), verificationUrl);
