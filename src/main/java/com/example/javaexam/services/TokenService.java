@@ -1,7 +1,7 @@
 package com.example.javaexam.services;
 
 import com.example.javaexam.security.dtos.AuthResponse;
-import com.example.javaexam.exceptions.InvalidTokenException;
+import com.example.javaexam.exceptions.ApiException;
 import com.example.javaexam.models.AuthToken;
 import com.example.javaexam.models.User;
 import com.example.javaexam.models.enums.TokenType;
@@ -54,29 +54,29 @@ public class TokenService {
      * is treated as theft: every session for that user is invalidated.
      *
      * <p>{@code noRollbackFor} is essential: the reuse-detection path bumps the
-     * token version (revoking all sessions) and then throws — without this, the
+     * token version (revoking all sessions) and then throws - without this, the
      * rollback would undo that security action.
      */
-    @Transactional(noRollbackFor = InvalidTokenException.class)
+    @Transactional(noRollbackFor = ApiException.class)
     public AuthResponse refresh(String refreshToken) {
         Claims claims = parseRefreshClaims(refreshToken);
         String jti = claims.getId();
         String email = claims.getSubject();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+                .orElseThrow(() -> ApiException.unauthorized("Invalid refresh token"));
 
         // Reuse detection: a denylisted jti means this token was already used.
         if (jti != null && authTokenRepository.existsByTypeAndToken(TokenType.REFRESH_REVOCATION, jti)) {
             user.setTokenVersion(user.getTokenVersion() + 1);
             userRepository.save(user);
             log.warn("Refresh token reuse detected for {} - all sessions revoked", email);
-            throw new InvalidTokenException("Refresh token reuse detected. All sessions have been revoked.");
+            throw ApiException.unauthorized("Refresh token reuse detected. All sessions have been revoked.");
         }
 
         Integer tokenVersion = claims.get(JwtService.CLAIM_TOKEN_VERSION, Integer.class);
         if (tokenVersion == null || tokenVersion != user.getTokenVersion()) {
-            throw new InvalidTokenException("Refresh token is no longer valid");
+            throw ApiException.unauthorized("Refresh token is no longer valid");
         }
 
         revoke(jti, claims.getExpiration());
@@ -100,10 +100,10 @@ public class TokenService {
         try {
             claims = jwtService.parseClaims(refreshToken);
         } catch (JwtException ex) {
-            throw new InvalidTokenException("Invalid or expired refresh token");
+            throw ApiException.unauthorized("Invalid or expired refresh token");
         }
         if (!JwtService.TYPE_REFRESH.equals(claims.get(JwtService.CLAIM_TYPE, String.class))) {
-            throw new InvalidTokenException("Not a refresh token");
+            throw ApiException.unauthorized("Not a refresh token");
         }
         return claims;
     }

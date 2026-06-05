@@ -5,10 +5,7 @@ import com.example.javaexam.security.dtos.ChangePasswordRequest;
 import com.example.javaexam.security.dtos.LoginRequest;
 import com.example.javaexam.models.domains.ApiResponse;
 import com.example.javaexam.security.dtos.RegisterRequest;
-import com.example.javaexam.exceptions.EmailAlreadyUsedException;
-import com.example.javaexam.exceptions.InvalidPasswordException;
-import com.example.javaexam.exceptions.PasswordResetException;
-import com.example.javaexam.exceptions.VerificationException;
+import com.example.javaexam.exceptions.ApiException;
 import com.example.javaexam.models.AuthToken;
 import com.example.javaexam.models.enums.Role;
 import com.example.javaexam.models.enums.TokenType;
@@ -58,7 +55,7 @@ public class AuthService {
     public ApiResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyUsedException(email);
+            throw ApiException.conflict("An account with email '" + email + "' already exists");
         }
 
         User user = User.builder()
@@ -81,13 +78,13 @@ public class AuthService {
     @Transactional
     public ApiResponse verify(String token) {
         AuthToken verificationToken = authTokenRepository.findByTypeAndToken(TokenType.EMAIL_VERIFICATION, token)
-                .orElseThrow(() -> new VerificationException("Invalid verification token"));
+                .orElseThrow(() -> ApiException.badRequest("Invalid verification token"));
 
         if (verificationToken.isConsumed()) {
-            throw new VerificationException("This verification link has already been used");
+            throw ApiException.badRequest("This verification link has already been used");
         }
         if (verificationToken.isExpired()) {
-            throw new VerificationException("This verification link has expired. Please request a new one.");
+            throw ApiException.badRequest("This verification link has expired. Please request a new one.");
         }
 
         User user = verificationToken.getUser();
@@ -105,10 +102,10 @@ public class AuthService {
     public ApiResponse resendVerification(String rawEmail) {
         String email = rawEmail.trim().toLowerCase();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new VerificationException("No account found for that email"));
+                .orElseThrow(() -> ApiException.badRequest("No account found for that email"));
 
         if (user.isEnabled()) {
-            throw new VerificationException("This account is already verified");
+            throw ApiException.badRequest("This account is already verified");
         }
 
         sendVerificationToken(user);
@@ -146,7 +143,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new InvalidPasswordException("Current password is incorrect");
+            throw ApiException.badRequest("Current password is incorrect");
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
@@ -200,13 +197,13 @@ public class AuthService {
     @Transactional
     public ApiResponse resetPassword(String token, String newPassword) {
         AuthToken resetToken = authTokenRepository.findByTypeAndToken(TokenType.PASSWORD_RESET, token)
-                .orElseThrow(() -> new PasswordResetException("Invalid password-reset token"));
+                .orElseThrow(() -> ApiException.badRequest("Invalid password-reset token"));
 
         if (resetToken.isConsumed()) {
-            throw new PasswordResetException("This reset link has already been used");
+            throw ApiException.badRequest("This reset link has already been used");
         }
         if (resetToken.isExpired()) {
-            throw new PasswordResetException("This reset link has expired. Please request a new one.");
+            throw ApiException.badRequest("This reset link has expired. Please request a new one.");
         }
 
         User user = resetToken.getUser();
