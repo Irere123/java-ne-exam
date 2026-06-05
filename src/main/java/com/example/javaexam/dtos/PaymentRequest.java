@@ -4,8 +4,10 @@ import com.example.javaexam.models.enums.PaymentMethod;
 import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -13,11 +15,13 @@ import java.time.LocalDate;
 public record PaymentRequest(
 
         @NotBlank(message = "Bill reference is required")
+        @Size(max = 40, message = "Bill reference is too long")
         @Schema(example = "BILL-202606-0001", description = "The bill_number to pay")
         String billNumber,
 
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than zero")
+        @Digits(integer = 12, fraction = 2, message = "Amount is out of range")
         @Schema(example = "5000.00")
         BigDecimal amount,
 

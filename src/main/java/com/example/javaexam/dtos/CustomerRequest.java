@@ -12,6 +12,8 @@ public record CustomerRequest(
 
         @NotBlank(message = "Full name is required")
         @Size(min = 2, max = 150, message = "Full name must be between 2 and 150 characters")
+        @Pattern(regexp = ValidationPatterns.FULL_NAME,
+                message = "Full name may contain only letters, spaces, apostrophes, periods, and hyphens")
         @Schema(example = "Jean Bosco Habimana")
         String fullName,
 

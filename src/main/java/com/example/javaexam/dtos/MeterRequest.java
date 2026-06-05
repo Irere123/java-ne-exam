@@ -18,8 +18,8 @@ public record MeterRequest(
         Long customerId,
 
         @Pattern(regexp = ValidationPatterns.METER_NUMBER,
-                message = "Meter number must be 4-20 uppercase letters, digits or hyphens")
-        @Schema(example = "WTR-000123")
+                message = "Meter number, if provided, must be 4-20 letters, digits or hyphens")
+        @Schema(example = "WTR-000123", description = "Optional; auto-generated when omitted")
         String meterNumber,
 
         @NotNull(message = "Meter type is required")

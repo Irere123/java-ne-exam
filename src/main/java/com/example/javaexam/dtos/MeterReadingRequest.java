@@ -3,6 +3,7 @@ package com.example.javaexam.dtos;
 import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
@@ -18,11 +19,13 @@ public record MeterReadingRequest(
 
         @NotNull(message = "Previous reading is required")
         @DecimalMin(value = "0.0", message = "Previous reading cannot be negative")
+        @Digits(integer = 11, fraction = 3, message = "Previous reading is out of range")
         @Schema(example = "1200.000")
         BigDecimal previousReading,
 
         @NotNull(message = "Current reading is required")
         @DecimalMin(value = "0.0", message = "Current reading cannot be negative")
+        @Digits(integer = 11, fraction = 3, message = "Current reading is out of range")
         @Schema(example = "1320.500")
         BigDecimal currentReading,
 

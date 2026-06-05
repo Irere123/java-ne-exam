@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -26,18 +27,21 @@ public record TariffRequest(
 
         @NotNull(message = "Service charge is required")
         @DecimalMin(value = "0.0", message = "Service charge cannot be negative")
+        @Digits(integer = 12, fraction = 2, message = "Service charge is out of range")
         @Schema(example = "2000.00")
         BigDecimal serviceCharge,
 
         @NotNull(message = "VAT rate is required")
         @DecimalMin(value = "0.0", message = "VAT rate cannot be negative")
         @DecimalMax(value = "100.0", message = "VAT rate cannot exceed 100")
+        @Digits(integer = 3, fraction = 2, message = "VAT rate may have at most 2 decimal places")
         @Schema(example = "18.00")
         BigDecimal vatRate,
 
         @NotNull(message = "Penalty rate is required")
         @DecimalMin(value = "0.0", message = "Penalty rate cannot be negative")
         @DecimalMax(value = "100.0", message = "Penalty rate cannot exceed 100")
+        @Digits(integer = 3, fraction = 2, message = "Penalty rate may have at most 2 decimal places")
         @Schema(example = "5.00")
         BigDecimal penaltyRate,
 
@@ -54,5 +58,5 @@ public record TariffRequest(
 
         @NotEmpty(message = "At least one consumption tier is required")
         @Valid
-        List<TariffTierRequest> tiers
+        List<@NotNull(message = "A consumption tier cannot be null") TariffTierRequest> tiers
 ) {}
