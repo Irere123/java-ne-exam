@@ -7,7 +7,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Payment view returned by the API, including the bill's resulting state. */
+/**
+ * Payment view returned by the API. The bill status/balance are snapshots taken
+ * at the time of this payment, so earlier rows keep showing the partial state
+ * they had then rather than the bill's latest (e.g. fully paid) state.
+ */
 public record PaymentResponse(
         Long id,
         String paymentReference,
@@ -22,7 +26,7 @@ public record PaymentResponse(
     public static PaymentResponse from(Payment p) {
         return new PaymentResponse(
                 p.getId(), p.getPaymentReference(), p.getBill().getBillNumber(), p.getAmount(),
-                p.getMethod(), p.getPaymentDate(), p.getBill().getStatus(),
-                p.getBill().getOutstandingBalance(), p.getCreatedAt());
+                p.getMethod(), p.getPaymentDate(), p.getStatusAfter(),
+                p.getBalanceAfter(), p.getCreatedAt());
     }
 }

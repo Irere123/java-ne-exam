@@ -49,6 +49,23 @@ public class PaymentService {
                     + bill.getOutstandingBalance() + " FRW");
         }
 
+        BigDecimal amountPaid = bill.getAmountPaid().add(request.amount());
+        BigDecimal outstanding = bill.getTotalAmount().subtract(amountPaid);
+        BigDecimal balanceAfter;
+        BillStatus statusAfter;
+        if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+            balanceAfter = BigDecimal.ZERO;
+            statusAfter = BillStatus.PAID;
+        } else {
+            balanceAfter = outstanding;
+            statusAfter = BillStatus.PARTIALLY_PAID;
+        }
+        bill.setAmountPaid(amountPaid);
+        bill.setOutstandingBalance(balanceAfter);
+        bill.setStatus(statusAfter);
+
+        // Snapshot the resulting balance/status onto the payment so history rows
+        // reflect the state at the time of each payment, not the bill's latest state.
         Payment payment = Payment.builder()
                 .paymentReference(generatePaymentReference())
                 .bill(bill)
@@ -56,19 +73,10 @@ public class PaymentService {
                 .method(request.method())
                 .paymentDate(request.paymentDate())
                 .recordedBy(recordedBy)
+                .balanceAfter(balanceAfter)
+                .statusAfter(statusAfter)
                 .build();
         paymentRepository.save(payment);
-
-        BigDecimal amountPaid = bill.getAmountPaid().add(request.amount());
-        BigDecimal outstanding = bill.getTotalAmount().subtract(amountPaid);
-        bill.setAmountPaid(amountPaid);
-        if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
-            bill.setOutstandingBalance(BigDecimal.ZERO);
-            bill.setStatus(BillStatus.PAID);
-        } else {
-            bill.setOutstandingBalance(outstanding);
-            bill.setStatus(BillStatus.PARTIALLY_PAID);
-        }
         billRepository.save(bill);
 
         log.info("Recorded payment {} of {} on bill {} -> {} (outstanding {})",

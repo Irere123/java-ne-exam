@@ -1,5 +1,6 @@
 package com.example.javaexam.models;
 
+import com.example.javaexam.models.enums.BillStatus;
 import com.example.javaexam.models.enums.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,6 +53,15 @@ public class Payment {
 
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate;
+
+    /** Snapshot of the bill's outstanding balance immediately after this payment. */
+    @Column(name = "balance_after", nullable = false, precision = 14, scale = 2)
+    private BigDecimal balanceAfter;
+
+    /** Snapshot of the bill's status immediately after this payment. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_after", nullable = false, length = 30)
+    private BillStatus statusAfter;
 
     /** Id of the FINANCE/ADMIN user who recorded the payment (nullable for audit). */
     @Column(name = "recorded_by")
