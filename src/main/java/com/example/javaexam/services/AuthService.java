@@ -129,6 +129,9 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
 
+        // Attach this account to a pre-existing customer profile with the same email, if any.
+        customerService.linkUserToCustomer(user);
+
         return tokenService.issueTokens(user);
     }
 
