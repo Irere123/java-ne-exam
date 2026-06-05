@@ -2,6 +2,7 @@ package com.example.javaexam.models.domains;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,10 @@ import org.springframework.http.ResponseEntity;
 public class ErrorResponse {
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Schema(example = "2026-06-05T07:45:12.123")
     private final String timestamp = LocalDateTime.now().toString();
+
+    @Schema(example = "Validation failed: {email=Email must be a valid address}")
     private String message = "";
 
     public ErrorResponse(String message) {

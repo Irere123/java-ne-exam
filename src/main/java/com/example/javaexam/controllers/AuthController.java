@@ -13,6 +13,7 @@ import com.example.javaexam.services.AuthService;
 import com.example.javaexam.services.TokenService;
 import com.example.javaexam.utils.ValidationPatterns;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -54,6 +55,7 @@ public class AuthController {
             @RequestParam("token")
             @NotBlank(message = "Token is required")
             @Pattern(regexp = ValidationPatterns.UUID, message = "Token must be a valid UUID")
+            @Parameter(example = "5c0f0d7e-2f7d-4f91-9d73-8e9b7d2a66f1")
             String token) {
         return authService.verify(token);
     }

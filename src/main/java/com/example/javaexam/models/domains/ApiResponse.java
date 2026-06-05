@@ -1,6 +1,7 @@
 package com.example.javaexam.models.domains;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Data;
 import org.springframework.http.HttpStatus;
@@ -10,10 +11,18 @@ import org.springframework.http.ResponseEntity;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ApiResponse<T> {
 
+    @Schema(example = "2026-06-05T07:45:12.123")
     private final String timestamp = LocalDateTime.now().toString();
+
     private T data;
+
+    @Schema(example = "Registration successful. Check your email to verify your account.")
     private String message = "";
+
+    @Schema(example = "CREATED")
     private HttpStatus status;
+
+    @Schema(example = "null", nullable = true)
     private Object error = null;
 
     public ApiResponse() {
