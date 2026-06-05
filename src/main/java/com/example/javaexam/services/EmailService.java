@@ -1,8 +1,10 @@
 package com.example.javaexam.services;
 
+import com.example.javaexam.exceptions.ApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -21,7 +23,15 @@ public class EmailService {
     @Value("${app.mail.from}")
     private String from;
 
+    @Value("${app.mail.enabled:true}")
+    private boolean mailEnabled;
+
     public void sendVerificationEmail(String to, String firstName, String verificationUrl) {
+        if (!mailEnabled) {
+            log.info("Mail disabled. Verification link for {}: {}", to, verificationUrl);
+            return;
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(to);
@@ -36,11 +46,15 @@ public class EmailService {
                 If you did not create this account, you can safely ignore this email.
                 """.formatted(firstName, verificationUrl));
 
-        mailSender.send(message);
-        log.info("Verification email sent to {}", to);
+        send(message, "Verification email sent to {}", to);
     }
 
     public void sendPasswordResetEmail(String to, String firstName, String resetUrl) {
+        if (!mailEnabled) {
+            log.info("Mail disabled. Password reset link for {}: {}", to, resetUrl);
+            return;
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(to);
@@ -56,7 +70,16 @@ public class EmailService {
                 ignore this email and your password will remain unchanged.
                 """.formatted(firstName, resetUrl));
 
-        mailSender.send(message);
-        log.info("Password-reset email sent to {}", to);
+        send(message, "Password-reset email sent to {}", to);
+    }
+
+    private void send(SimpleMailMessage message, String logMessage, String to) {
+        try {
+            mailSender.send(message);
+            log.info(logMessage, to);
+        } catch (MailException ex) {
+            log.warn("Failed to send email to {}: {}", to, ex.getMessage());
+            throw ApiException.serviceUnavailable("Email service is unavailable. Please try again later.");
+        }
     }
 }
