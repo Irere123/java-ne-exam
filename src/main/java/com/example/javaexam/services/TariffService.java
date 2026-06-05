@@ -6,6 +6,7 @@ import com.example.javaexam.exceptions.ApiException;
 import com.example.javaexam.models.Tariff;
 import com.example.javaexam.models.TariffTier;
 import com.example.javaexam.models.enums.MeterType;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,16 @@ public class TariffService {
 
     @Transactional
     public TariffResponse create(TariffRequest request) {
-        int nextVersion = tariffRepository.findMaxVersion(request.meterType()) + 1;
+        // Versions are ordered desc, so the first entry is the current (latest) one.
+        List<Tariff> existingVersions = tariffRepository.findByMeterTypeOrderByVersionDesc(request.meterType());
+        if (!existingVersions.isEmpty()) {
+            LocalDate latestEffective = existingVersions.get(0).getEffectiveFrom();
+            if (!request.effectiveFrom().isAfter(latestEffective)) {
+                throw ApiException.badRequest("Effective-from must be after the current " + request.meterType()
+                        + " tariff's effective date (" + latestEffective + ")");
+            }
+        }
+        int nextVersion = existingVersions.isEmpty() ? 1 : existingVersions.get(0).getVersion() + 1;
 
         Tariff tariff = Tariff.builder()
                 .meterType(request.meterType())

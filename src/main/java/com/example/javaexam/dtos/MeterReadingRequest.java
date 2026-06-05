@@ -1,9 +1,9 @@
 package com.example.javaexam.dtos;
 
+import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,7 +27,7 @@ public record MeterReadingRequest(
         BigDecimal currentReading,
 
         @NotNull(message = "Reading date is required")
-        @PastOrPresent(message = "Reading date cannot be in the future")
+        @PlausibleDate(message = "Reading date must be a real date that is not in the future")
         @Schema(example = "2026-06-01")
         LocalDate readingDate
 ) {}

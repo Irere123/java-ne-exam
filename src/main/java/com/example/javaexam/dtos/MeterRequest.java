@@ -2,10 +2,10 @@ package com.example.javaexam.dtos;
 
 import com.example.javaexam.models.enums.MeterType;
 import com.example.javaexam.utils.ValidationPatterns;
+import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 
@@ -27,7 +27,7 @@ public record MeterRequest(
         MeterType meterType,
 
         @NotNull(message = "Installation date is required")
-        @PastOrPresent(message = "Installation date cannot be in the future")
+        @PlausibleDate(message = "Installation date must be a real date that is not in the future")
         @Schema(example = "2026-01-15")
         LocalDate installationDate
 ) {}

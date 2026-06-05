@@ -1,6 +1,8 @@
 package com.example.javaexam.dtos;
 
 import com.example.javaexam.models.enums.MeterType;
+import com.example.javaexam.utils.DateRules;
+import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -40,6 +42,9 @@ public record TariffRequest(
         BigDecimal penaltyRate,
 
         @NotNull(message = "Effective-from date is required")
+        @PlausibleDate(allowFuture = true, maxFutureYears = DateRules.MAX_TARIFF_LEAD_YEARS,
+                message = "Effective-from must be a real date no more than "
+                        + DateRules.MAX_TARIFF_LEAD_YEARS + " years ahead")
         @Schema(example = "2026-07-01")
         LocalDate effectiveFrom,
 

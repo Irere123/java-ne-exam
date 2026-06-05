@@ -304,7 +304,30 @@ Run the tests (uses in-memory H2, no PostgreSQL/SMTP needed):
 
 ---
 
-## 9. Scope notes
+## 9. Date validation
+
+Every date the API accepts is validated so it can only ever hold a value that
+makes sense for the system. Two layers enforce this:
+
+**Field-level** — a reusable `@PlausibleDate` bean-validation constraint rejects
+nonsense values (a `400` with a clear message) before a request reaches the
+service:
+
+| Field | Rule |
+|-------|------|
+| `installationDate` (meter) | a real date, on/after the system epoch (2000-01-01), not in the future |
+| `readingDate` (reading)    | a real date, on/after the epoch, not in the future |
+| `paymentDate` (payment)    | a real date, on/after the epoch, not in the future |
+| `effectiveFrom` (tariff)   | a real date, on/after the epoch, at most 5 years ahead |
+
+**Cross-record** — rules that depend on other data are enforced in the services:
+
+- a **reading** cannot pre-date the meter's `installationDate`;
+- a **payment** cannot pre-date the day its bill was issued;
+- a new **tariff** version's `effectiveFrom` must be *after* the current
+  version's, so versions always move forward in time.
+
+## 10. Scope notes
 
 - **Postpaid billing** is implemented end-to-end for both water and electricity,
   reflecting the company's goal of unifying everything onto a postpaid model.

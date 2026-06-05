@@ -9,6 +9,7 @@ import com.example.javaexam.models.enums.BillStatus;
 import com.example.javaexam.repositories.BillRepository;
 import com.example.javaexam.repositories.PaymentRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,10 @@ public class PaymentService {
         }
         if (bill.getStatus() == BillStatus.PAID) {
             throw ApiException.badRequest("Bill " + bill.getBillNumber() + " is already fully paid");
+        }
+        LocalDate issuedOn = bill.getCreatedAt().toLocalDate();
+        if (request.paymentDate().isBefore(issuedOn)) {
+            throw ApiException.badRequest("Payment date cannot be before the bill was issued on " + issuedOn);
         }
         if (request.amount().compareTo(bill.getOutstandingBalance()) > 0) {
             throw ApiException.badRequest("Amount exceeds the outstanding balance of "

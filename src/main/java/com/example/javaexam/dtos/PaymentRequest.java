@@ -1,11 +1,11 @@
 package com.example.javaexam.dtos;
 
 import com.example.javaexam.models.enums.PaymentMethod;
+import com.example.javaexam.validation.PlausibleDate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -26,7 +26,7 @@ public record PaymentRequest(
         PaymentMethod method,
 
         @NotNull(message = "Payment date is required")
-        @PastOrPresent(message = "Payment date cannot be in the future")
+        @PlausibleDate(message = "Payment date must be a real date that is not in the future")
         @Schema(example = "2026-06-20")
         LocalDate paymentDate
 ) {}

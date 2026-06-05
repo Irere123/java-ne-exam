@@ -35,6 +35,10 @@ public class MeterReadingService {
         if (!meter.isActive()) {
             throw ApiException.badRequest("Cannot record a reading for an inactive meter");
         }
+        if (request.readingDate().isBefore(meter.getInstallationDate())) {
+            throw ApiException.badRequest(
+                    "Reading date cannot be before the meter was installed on " + meter.getInstallationDate());
+        }
         if (request.currentReading().compareTo(request.previousReading()) <= 0) {
             throw ApiException.badRequest("Current reading must be greater than the previous reading");
         }
