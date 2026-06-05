@@ -1,6 +1,6 @@
 package com.example.javaexam.security;
 
-import com.example.javaexam.model.User;
+import com.example.javaexam.models.User;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

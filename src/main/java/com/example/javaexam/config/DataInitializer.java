@@ -1,8 +1,8 @@
 package com.example.javaexam.config;
 
-import com.example.javaexam.model.Role;
-import com.example.javaexam.model.User;
-import com.example.javaexam.repository.UserRepository;
+import com.example.javaexam.models.enums.Role;
+import com.example.javaexam.models.User;
+import com.example.javaexam.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

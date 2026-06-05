@@ -1,6 +1,6 @@
 package com.example.javaexam.security;
 
-import com.example.javaexam.repository.UserRepository;
+import com.example.javaexam.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
