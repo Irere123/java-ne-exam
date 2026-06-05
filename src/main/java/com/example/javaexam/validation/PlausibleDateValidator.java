@@ -22,7 +22,13 @@ public class PlausibleDateValidator implements ConstraintValidator<PlausibleDate
         if (value == null) {
             return true; // presence is governed by @NotNull
         }
+        // Too-far-in-the-past gets its own message; the annotation's (field-specific)
+        // message covers the "not in the future" / lead-time case below.
         if (value.isBefore(DateRules.SYSTEM_EPOCH)) {
+            context.disableDefaultConstraintViolation();
+            context.buildConstraintViolationWithTemplate(
+                            "must be a real date no earlier than " + DateRules.SYSTEM_EPOCH)
+                    .addConstraintViolation();
             return false;
         }
         LocalDate today = LocalDate.now();

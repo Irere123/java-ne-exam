@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Size;
 public record ChangePasswordRequest(
 
         @NotBlank(message = "Current password is required")
-        @Size(min = 8, max = 72, message = "Current password must be between 8 and 72 characters")
         @Schema(example = "ExamPass1!")
         String currentPassword,
 
