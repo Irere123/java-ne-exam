@@ -25,7 +25,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * A monthly postpaid bill generated from a meter reading and the applicable
- * tariff (Tasks 5 &amp; 6).
+ * tariff.
  *
  * <p>Inserting a bill fires the {@code trg_bill_after_insert} trigger, which
  * writes a BILL_GENERATED notification. When a payment drives

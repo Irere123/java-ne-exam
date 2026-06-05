@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Payment view returned by the API, including the bill's resulting state (Task 5). */
+/** Payment view returned by the API, including the bill's resulting state. */
 public record PaymentResponse(
         Long id,
         String paymentReference,

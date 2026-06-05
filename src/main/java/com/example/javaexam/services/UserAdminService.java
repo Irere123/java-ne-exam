@@ -14,7 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Admin user management (Task 1): create accounts, change roles, activate/deactivate. */
+/** Admin user management: create accounts, change roles, activate/deactivate. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -22,6 +22,7 @@ public class UserAdminService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CustomerService customerService;
 
     @Transactional
     public UserResponse create(AdminCreateUserRequest request) {
@@ -40,6 +41,9 @@ public class UserAdminService {
                 .enabled(true)
                 .build();
         userRepository.save(user);
+
+        // Attach to a pre-existing customer profile with the same email, if any.
+        customerService.linkUserToCustomer(user);
 
         log.info("Admin created user {} with role {}", email, request.role());
         return UserResponse.from(user);

@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Payload to configure a new tariff version (Task 4). The version number is
+ * Payload to configure a new tariff version. The version number is
  * assigned automatically (latest + 1) for the meter type.
  */
 public record TariffRequest(

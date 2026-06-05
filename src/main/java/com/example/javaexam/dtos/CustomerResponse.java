@@ -4,7 +4,7 @@ import com.example.javaexam.models.Customer;
 import com.example.javaexam.models.enums.Status;
 import java.time.LocalDateTime;
 
-/** Customer view returned by the API (Task 2). */
+/** Customer view returned by the API. */
 public record CustomerResponse(
         Long id,
         String fullName,
@@ -13,11 +13,13 @@ public record CustomerResponse(
         String phoneNumber,
         String address,
         Status status,
+        Long userId,
         LocalDateTime createdAt
 ) {
     public static CustomerResponse from(Customer c) {
         return new CustomerResponse(
                 c.getId(), c.getFullName(), c.getNationalId(), c.getEmail(),
-                c.getPhoneNumber(), c.getAddress(), c.getStatus(), c.getCreatedAt());
+                c.getPhoneNumber(), c.getAddress(), c.getStatus(),
+                c.getUser() != null ? c.getUser().getId() : null, c.getCreatedAt());
     }
 }

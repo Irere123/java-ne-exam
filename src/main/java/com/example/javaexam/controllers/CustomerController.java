@@ -21,11 +21,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Customer management (Task 2). JWT required. */
+/** Customer management. JWT required. */
 @RestController
 @RequestMapping("/api/customers")
 @RequiredArgsConstructor
-@Tag(name = "Customers", description = "Register and manage customers (Task 2)")
+@Tag(name = "Customers", description = "Register customers and manage their details and active status")
 public class CustomerController {
 
     private final CustomerService customerService;

@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Tariff view returned by the API (Task 4). */
+/** Tariff view returned by the API. */
 public record TariffResponse(
         Long id,
         MeterType meterType,

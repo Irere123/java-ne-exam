@@ -4,7 +4,7 @@ import com.example.javaexam.models.enums.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
-/** Admin payload to change a user's role (Task 1: "manage users"). */
+/** Admin payload to change a user's role. */
 public record RoleUpdateRequest(
 
         @NotNull(message = "Role is required")

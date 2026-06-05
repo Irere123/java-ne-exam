@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * One consumption band of a tariff (Task 4). Units in {@code [minUnits, maxUnits)}
+ * One consumption band of a tariff. Units in {@code [minUnits, maxUnits)}
  * are charged at {@code ratePerUnit}. Leave {@code maxUnits} null for the
  * unbounded top tier. A flat tariff is a single tier with min 0 and null max.
  */

@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * A customer notification (Task 6). Rows are written by database triggers on
+ * A customer notification. Rows are written by database triggers on
  * bill generation and on full payment, never by application code, so this
  * entity is read-only from the API's perspective.
  */

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Admin user management (Task 1). Mapped under {@code /api/admin/**}, which
+ * Admin user management. Mapped under {@code /api/admin/**}, which
  * SecurityConfig already restricts to {@code ROLE_ADMIN}; the method-level
  * {@code @PreAuthorize} keeps the requirement explicit.
  */
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin / Users", description = "Create users and manage roles and status (ADMIN, Task 1)")
+@Tag(name = "Admin / Users", description = "Create staff and customer accounts and manage their roles and active status (ADMIN only)")
 public class AdminUserController {
 
     private final UserAdminService userAdminService;

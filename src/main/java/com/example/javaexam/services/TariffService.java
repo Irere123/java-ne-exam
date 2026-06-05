@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.javaexam.repositories.TariffRepository;
 
 /**
- * Tariff configuration (Task 4). Tariffs are versioned per meter type: each new
+ * Tariff configuration. Tariffs are versioned per meter type: each new
  * configuration becomes the next version and only applies to billing cycles on
  * or after its {@code effectiveFrom} date (see {@code BillService}).
  */

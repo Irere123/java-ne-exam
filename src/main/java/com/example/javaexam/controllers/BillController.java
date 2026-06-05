@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Bill generation, approval and late-penalty processing (Tasks 5 &amp; 6). JWT required. */
+/** Bill generation, approval and late-penalty processing. JWT required. */
 @RestController
 @RequestMapping("/api/bills")
 @RequiredArgsConstructor
-@Tag(name = "Bills", description = "Generate, approve and view bills; apply late penalties (Tasks 5 & 6)")
+@Tag(name = "Bills", description = "Generate bills from meter readings, approve them for payment, and apply penalties to overdue bills")
 public class BillController {
 
     private final BillService billService;

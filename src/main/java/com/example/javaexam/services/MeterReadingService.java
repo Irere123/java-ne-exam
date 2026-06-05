@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Meter reading capture (Task 3). Business rules enforced here:
+ * Meter reading capture. Business rules enforced here:
  * <ul>
  *   <li>the meter must be active;</li>
  *   <li>the current reading must be greater than the previous reading;</li>

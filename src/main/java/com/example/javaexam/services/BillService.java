@@ -23,13 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Bill generation and lifecycle (Tasks 4-6).
+ * Bill generation and lifecycle.
  *
  * <p>A bill is generated from a single meter reading using the tariff version in
  * effect for the reading's billing period. Inactive customers cannot be billed.
  * Inserting the bill fires a database trigger that records a BILL_GENERATED
- * notification (Task 6). Late penalties are applied by the {@code
- * sp_apply_late_penalties} stored procedure (cursor-based, Task 6).
+ * notification. Late penalties are applied by the {@code
+ * sp_apply_late_penalties} stored procedure (cursor-based).
  */
 @Service
 @RequiredArgsConstructor
@@ -99,7 +99,7 @@ public class BillService {
         return BillResponse.from(bill);
     }
 
-    /** Approves a pending bill, making it payable (Task: ADMIN/FINANCE approve bills). */
+    /** Approves a pending bill, making it payable. */
     @Transactional
     public BillResponse approve(Long id) {
         Bill bill = getEntity(id);
@@ -114,7 +114,7 @@ public class BillService {
 
     /**
      * Runs the cursor-based stored procedure that applies the configured late
-     * penalty to every overdue, unpaid bill (Task 6). PostgreSQL only.
+     * penalty to every overdue, unpaid bill. PostgreSQL only.
      */
     @Transactional
     public void applyLatePenalties() {
@@ -138,18 +138,10 @@ public class BillService {
                 .map(BillResponse::from).toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<BillResponse> listForCustomerEmail(String email) {
-        return billRepository.findByCustomerEmailOrderByCreatedAtDesc(email.trim().toLowerCase()).stream()
-                .map(BillResponse::from).toList();
-    }
-
     public Bill getEntity(Long id) {
         return billRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Bill not found: " + id));
     }
-
-    // --- Helpers ----------------------------------------------------------
 
     /**
      * Charges {@code consumption} units against the tariff's tiers. Units within

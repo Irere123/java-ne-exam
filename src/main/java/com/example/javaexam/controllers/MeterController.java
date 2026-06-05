@@ -21,11 +21,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Meter management (Task 2). JWT required. */
+/** Meter management. JWT required. */
 @RestController
 @RequestMapping("/api/meters")
 @RequiredArgsConstructor
-@Tag(name = "Meters", description = "Register and manage customer meters (Task 2)")
+@Tag(name = "Meters", description = "Register meters to customers and manage their active status")
 public class MeterController {
 
     private final MeterService meterService;

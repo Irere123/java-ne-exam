@@ -4,7 +4,7 @@ import com.example.javaexam.models.User;
 import com.example.javaexam.models.enums.Role;
 import java.time.LocalDateTime;
 
-/** User view returned by the admin user-management endpoints (Task 1). */
+/** User view returned by the admin user-management endpoints. */
 public record UserResponse(
         Long id,
         String firstName,

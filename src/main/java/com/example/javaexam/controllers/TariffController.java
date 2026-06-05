@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Tariff, tax and penalty configuration (Task 4). JWT required. */
+/** Tariff, tax and penalty configuration. JWT required. */
 @RestController
 @RequestMapping("/api/tariffs")
 @RequiredArgsConstructor
-@Tag(name = "Tariffs", description = "Configure versioned tariffs, service charges, VAT and penalties (Task 4)")
+@Tag(name = "Tariffs", description = "Configure versioned tariffs with consumption tiers, service charges, VAT and penalty rates")
 public class TariffController {
 
     private final TariffService tariffService;

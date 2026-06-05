@@ -6,7 +6,7 @@ import com.example.javaexam.models.enums.Status;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Meter view returned by the API (Task 2). */
+/** Meter view returned by the API. */
 public record MeterResponse(
         Long id,
         String meterNumber,

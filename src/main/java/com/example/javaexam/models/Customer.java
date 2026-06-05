@@ -5,9 +5,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -18,7 +21,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-/** A utility customer. Identified uniquely by National ID (Task 2). */
+/** A utility customer. Identified uniquely by National ID. */
 @Entity
 @Table(name = "customers")
 @Getter
@@ -51,6 +54,15 @@ public class Customer {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private Status status = Status.ACTIVE;
+
+    /**
+     * Optional self-service login account. A customer may own one user account
+     * (role {@code CUSTOMER}); staff users have no customer record. Linked by
+     * matching email when either record is created.
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private User user;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

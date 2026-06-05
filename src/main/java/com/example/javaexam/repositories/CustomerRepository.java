@@ -10,6 +10,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByEmail(String email);
 
+    /** The customer profile linked to a self-service login account, if any. */
+    Optional<Customer> findByUserId(Long userId);
+
     boolean existsByNationalId(String nationalId);
 
     boolean existsByEmail(String email);

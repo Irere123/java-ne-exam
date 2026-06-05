@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Read access to notifications (Task 6). Notification rows are produced by
+ * Read access to notifications. Notification rows are produced by
  * database triggers on bill generation and full payment, so this service only
  * exposes them — it never creates them.
  */
@@ -26,12 +26,6 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationResponse> listByCustomer(Long customerId) {
         return notificationRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
-                .map(NotificationResponse::from).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<NotificationResponse> listForCustomerEmail(String email) {
-        return notificationRepository.findByCustomerEmailOrderByCreatedAtDesc(email.trim().toLowerCase()).stream()
                 .map(NotificationResponse::from).toList();
     }
 }

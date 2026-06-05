@@ -25,7 +25,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * A versioned tariff for a meter type (Task 4). Bundles the consumption rates
+ * A versioned tariff for a meter type. Bundles the consumption rates
  * (as tiers), a fixed service charge, a VAT rate, and a late-payment penalty
  * rate. A flat tariff is just a single tier spanning {@code [0, +inf)}.
  *

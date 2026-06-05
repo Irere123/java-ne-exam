@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Bill view returned by the API (Tasks 5 &amp; 6). */
+/** Bill view returned by the API. */
 public record BillResponse(
         Long id,
         String billNumber,

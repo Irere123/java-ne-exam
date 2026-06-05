@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Payload for an operator capturing a meter reading (Task 3). */
+/** Payload for an operator capturing a meter reading. */
 public record MeterReadingRequest(
 
         @NotNull(message = "Meter id is required")

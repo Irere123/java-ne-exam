@@ -10,8 +10,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Admin payload to create a staff/customer account with a specific role
- * (Task 1: "manage users"). The account is created already enabled.
+ * Admin payload to create a staff or customer account with a specific role.
+ * The account is created already enabled, with no email verification required.
  */
 public record AdminCreateUserRequest(
 

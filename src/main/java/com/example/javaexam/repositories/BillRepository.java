@@ -14,6 +14,4 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     boolean existsByBillNumber(String billNumber);
 
     List<Bill> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
-
-    List<Bill> findByCustomerEmailOrderByCreatedAtDesc(String email);
 }

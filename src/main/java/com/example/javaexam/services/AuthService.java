@@ -39,6 +39,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final EmailService emailService;
+    private final CustomerService customerService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -48,8 +49,6 @@ public class AuthService {
 
     @Value("${app.password-reset.expiration-minutes}")
     private long passwordResetExpirationMinutes;
-
-    // --- Registration & verification --------------------------------------
 
     @Transactional
     public ApiResponse register(RegisterRequest request) {
@@ -68,6 +67,9 @@ public class AuthService {
                 .enabled(false)
                 .build();
         userRepository.save(user);
+
+        // Attach this account to a pre-existing customer profile with the same email, if any.
+        customerService.linkUserToCustomer(user);
 
         sendVerificationToken(user);
 
@@ -113,8 +115,6 @@ public class AuthService {
         return new ApiResponse("A new verification email has been sent.");
     }
 
-    // --- Login ------------------------------------------------------------
-
     /**
      * Authenticates credentials and returns a token pair. Spring Security
      * rejects unverified accounts (the {@code enabled} flag) automatically.
@@ -130,8 +130,6 @@ public class AuthService {
 
         return tokenService.issueTokens(user);
     }
-
-    // --- Password management ----------------------------------------------
 
     /**
      * Changes the password of an authenticated user. Bumps the token version

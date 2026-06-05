@@ -4,7 +4,7 @@ import com.example.javaexam.models.Notification;
 import com.example.javaexam.models.enums.NotificationType;
 import java.time.LocalDateTime;
 
-/** Notification view returned by the API (Task 6). */
+/** Notification view returned by the API. */
 public record NotificationResponse(
         Long id,
         Long customerId,

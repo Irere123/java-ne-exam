@@ -16,9 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Payment processing (Task 5). Supports partial and full payments, keeps the
+ * Payment processing. Supports partial and full payments, keeps the
  * bill's outstanding balance in sync, and marks the bill PAID when the balance
- * reaches zero — which fires the DB trigger that notifies the customer (Task 6).
+ * reaches zero — which fires the DB trigger that notifies the customer.
  */
 @Service
 @RequiredArgsConstructor
@@ -82,8 +82,8 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> listForCustomerEmail(String email) {
-        return paymentRepository.findByBillCustomerEmailOrderByCreatedAtDesc(email.trim().toLowerCase()).stream()
+    public List<PaymentResponse> listByCustomer(Long customerId) {
+        return paymentRepository.findByBillCustomerIdOrderByCreatedAtDesc(customerId).stream()
                 .map(PaymentResponse::from).toList();
     }
 

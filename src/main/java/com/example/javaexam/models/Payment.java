@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-/** A payment recorded against a bill (Task 5). Supports partial and full payments. */
+/** A payment recorded against a bill. Supports partial and full payments. */
 @Entity
 @Table(name = "payments")
 @Getter

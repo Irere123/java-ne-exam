@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Payment processing (Task 5). JWT required. */
+/** Payment processing. JWT required. */
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@Tag(name = "Payments", description = "Record bill payments; partial and full (Task 5)")
+@Tag(name = "Payments", description = "Record full or partial payments against bills")
 public class PaymentController {
 
     private final PaymentService paymentService;

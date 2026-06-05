@@ -9,7 +9,7 @@ import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 
-/** Payload to register a meter for a customer (Task 2). */
+/** Payload to register a meter for a customer. */
 public record MeterRequest(
 
         @NotNull(message = "Customer id is required")

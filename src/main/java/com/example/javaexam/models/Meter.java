@@ -23,7 +23,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-/** A metering device owned by a customer (Task 2). */
+/** A metering device owned by a customer. */
 @Entity
 @Table(name = "meters")
 @Getter

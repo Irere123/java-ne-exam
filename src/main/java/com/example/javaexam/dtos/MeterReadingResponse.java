@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Meter reading view returned by the API (Task 3). */
+/** Meter reading view returned by the API. */
 public record MeterReadingResponse(
         Long id,
         Long meterId,

@@ -21,7 +21,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * A monthly meter reading (Task 3). At most one reading per meter per
+ * A monthly meter reading. At most one reading per meter per
  * month/year, enforced by {@code uq_meter_readings_period}.
  */
 @Entity

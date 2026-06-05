@@ -4,21 +4,24 @@ import com.example.javaexam.dtos.CustomerRequest;
 import com.example.javaexam.dtos.CustomerResponse;
 import com.example.javaexam.exceptions.ApiException;
 import com.example.javaexam.models.Customer;
+import com.example.javaexam.models.User;
 import com.example.javaexam.models.enums.Status;
 import com.example.javaexam.repositories.CustomerRepository;
+import com.example.javaexam.repositories.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Customer management (Task 2): registration with duplicate prevention and status control. */
+/** Customer management: registration with duplicate prevention and status control. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public CustomerResponse create(CustomerRequest request) {
@@ -38,9 +41,12 @@ public class CustomerService {
                 .address(request.address() == null ? null : request.address().trim())
                 .status(Status.ACTIVE)
                 .build();
+        // Link an existing self-service account if one was already registered with this email.
+        userRepository.findByEmail(email).ifPresent(customer::setUser);
         customerRepository.save(customer);
 
-        log.info("Registered customer {} (National ID {})", email, request.nationalId());
+        log.info("Registered customer {} (National ID {}){}", email, request.nationalId(),
+                customer.getUser() != null ? " linked to user " + customer.getUser().getId() : "");
         return CustomerResponse.from(customer);
     }
 
@@ -89,5 +95,28 @@ public class CustomerService {
     public Customer getEntity(Long id) {
         return customerRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Customer not found: " + id));
+    }
+
+    /** Resolves the customer profile owned by a login account, or throws 404 if none is linked. */
+    @Transactional(readOnly = true)
+    public Customer getEntityByUser(Long userId) {
+        return customerRepository.findByUserId(userId)
+                .orElseThrow(() -> ApiException.notFound("No customer profile is linked to your account"));
+    }
+
+    /**
+     * Links a freshly created/registered login account to its customer profile,
+     * if one exists for the same email and is not already linked. Idempotent;
+     * safe to call for staff accounts (no-op when no matching customer exists).
+     */
+    @Transactional
+    public void linkUserToCustomer(User user) {
+        customerRepository.findByEmail(user.getEmail()).ifPresent(customer -> {
+            if (customer.getUser() == null) {
+                customer.setUser(user);
+                customerRepository.save(customer);
+                log.info("Linked user {} to customer {}", user.getId(), customer.getId());
+            }
+        });
     }
 }
