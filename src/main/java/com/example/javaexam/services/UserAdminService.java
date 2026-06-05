@@ -35,6 +35,7 @@ public class UserAdminService {
                 .firstName(request.firstName().trim())
                 .lastName(request.lastName().trim())
                 .email(email)
+                .countryCode(AuthService.normalizeCountryCode(request.countryCode()))
                 .phoneNumber(request.phoneNumber().trim())
                 .password(passwordEncoder.encode(request.password()))
                 .role(request.role())
@@ -62,10 +63,9 @@ public class UserAdminService {
     @Transactional
     public UserResponse updateStatus(Long id, Status status) {
         User user = getEntity(id);
-        boolean active = status == Status.ACTIVE;
-        user.setEnabled(active);
-        if (!active) {
-            user.setTokenVersion(user.getTokenVersion() + 1); // force the deactivated user to sign out
+        user.setStatus(status);
+        if (status == Status.INACTIVE) {
+            user.setTokenVersion(user.getTokenVersion() + 1); // revoke the deactivated user's sessions
         }
         userRepository.save(user);
         log.info("User {} status set to {}", id, status);

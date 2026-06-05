@@ -1,1 +1,269 @@
-comm
+// ============================================================================
+//  Utility Billing System (WASAC / REG) — Entity Relationship Diagram
+//  Syntax: DBML (https://dbml.dbdiagram.io/docs). Paste into dbdiagram.io to
+//  render, or run `dbml2sql` to generate DDL.
+//
+//  The live schema is owned by Flyway (src/main/resources/db/migration); this
+//  file is the human-readable design view and is kept in step with it.
+// ============================================================================
+
+Project utility_billing {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Secure, automated postpaid billing backend for a national utility.
+    Covers user management & JWT security, customers & meters, meter readings,
+    versioned tariffs, bills, payments, and trigger-driven notifications.
+  '''
+}
+
+// ---------------------------------------------------------------------------
+//  Enums
+// ---------------------------------------------------------------------------
+
+Enum role {
+  ADMIN     [note: 'Configure tariffs, approve bills, manage users']
+  OPERATOR  [note: 'Capture meter readings']
+  FINANCE   [note: 'Approve bills and record payments']
+  CUSTOMER  [note: 'View own bills and payment history']
+}
+
+Enum status {
+  ACTIVE
+  INACTIVE
+}
+
+Enum meter_type {
+  WATER
+  ELECTRICITY
+}
+
+Enum bill_status {
+  PENDING         [note: 'Generated from a reading, awaiting approval']
+  APPROVED        [note: 'Approved by finance/admin and payable']
+  PARTIALLY_PAID  [note: 'At least one payment recorded, balance remaining']
+  PAID            [note: 'Outstanding balance reached zero']
+  OVERDUE         [note: 'Past due with a balance; late penalty applied']
+}
+
+Enum payment_method {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CARD
+}
+
+Enum notification_type {
+  BILL_GENERATED
+  PAYMENT_COMPLETED
+}
+
+Enum token_type {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  REFRESH_REVOCATION
+}
+
+// ---------------------------------------------------------------------------
+//  Identity & security
+// ---------------------------------------------------------------------------
+
+Table users {
+  id            bigint        [pk, increment]
+  first_name    varchar(100)  [not null]
+  last_name     varchar(100)  [not null]
+  email         varchar(255)  [not null, unique, note: 'Login username']
+  country_code  varchar(5)    [not null, default: '+250', note: 'Dialing code; Rwanda by default']
+  phone_number  varchar(20)   [note: 'Subscriber number, without the country code']
+  password      varchar(255)  [not null, note: 'BCrypt hash']
+  role          role          [not null, default: 'CUSTOMER']
+  status        status        [not null, default: 'ACTIVE', note: 'Admin-managed; inactive users cannot log in']
+  enabled       boolean       [not null, default: false, note: 'Email-verified flag (distinct from status)']
+  token_version int           [not null, default: 0, note: 'Bumped to revoke all issued JWTs']
+  created_at    timestamp     [not null]
+  updated_at    timestamp     [not null]
+
+  Note: 'Application user and Spring Security principal.'
+}
+
+Table auth_tokens {
+  id          bigint      [pk, increment]
+  type        token_type  [not null]
+  token       varchar     [not null]
+  user_id     bigint      [ref: > users.id, note: 'Owning account']
+  expires_at  timestamp   [not null]
+  consumed_at timestamp   [note: 'Set when a one-time token is used']
+  revoked_at  timestamp   [note: 'Set when a refresh token is revoked']
+  created_at  timestamp   [not null]
+
+  indexes {
+    (type, token) [unique, name: 'uq_auth_tokens_type_token']
+  }
+  Note: 'Email-verification, password-reset and refresh-revocation tokens.'
+}
+
+// ---------------------------------------------------------------------------
+//  Customers & meters
+// ---------------------------------------------------------------------------
+
+Table customers {
+  id           bigint        [pk, increment]
+  full_name    varchar(150)  [not null]
+  national_id  varchar(16)   [not null, unique, note: 'Rwandan National ID, 16 digits']
+  email        varchar(255)  [not null, unique]
+  phone_number varchar(20)   [not null]
+  address      varchar(255)
+  status       status        [not null, default: 'ACTIVE', note: 'Inactive customers cannot be billed']
+  user_id      bigint        [unique, ref: - users.id, note: 'Optional self-service login account']
+  created_at   timestamp     [not null]
+  updated_at   timestamp     [not null]
+
+  Note: 'A utility customer, uniquely identified by National ID.'
+}
+
+Table meters {
+  id                bigint      [pk, increment]
+  meter_number      varchar(20) [not null, unique]
+  meter_type        meter_type  [not null]
+  installation_date date        [not null]
+  status            status      [not null, default: 'ACTIVE']
+  customer_id       bigint      [not null, ref: > customers.id]
+  created_at        timestamp   [not null]
+  updated_at        timestamp   [not null]
+
+  Note: 'A metering device. A customer may own one or more meters.'
+}
+
+// ---------------------------------------------------------------------------
+//  Meter readings
+// ---------------------------------------------------------------------------
+
+Table meter_readings {
+  id               bigint        [pk, increment]
+  meter_id         bigint        [not null, ref: > meters.id]
+  previous_reading numeric(14,3) [not null]
+  current_reading  numeric(14,3) [not null, note: 'Must be greater than previous_reading']
+  consumption      numeric(14,3) [not null, note: 'current - previous']
+  reading_date     date          [not null]
+  reading_year     int           [not null]
+  reading_month    int           [not null]
+  recorded_by      bigint        [ref: > users.id, note: 'Operator who captured it']
+  created_at       timestamp     [not null]
+
+  indexes {
+    (meter_id, reading_year, reading_month) [unique, name: 'uq_reading_meter_period']
+  }
+  Note: 'One reading per meter per month/year.'
+}
+
+// ---------------------------------------------------------------------------
+//  Tariffs (versioned, flat or tier-based)
+// ---------------------------------------------------------------------------
+
+Table tariffs {
+  id             bigint        [pk, increment]
+  meter_type     meter_type    [not null]
+  version        int           [not null, note: 'Auto-incremented per meter type']
+  service_charge numeric(14,2) [not null, note: 'Fixed charge per bill']
+  vat_rate       numeric(6,2)  [not null, note: 'Percentage, e.g. 18.00']
+  penalty_rate   numeric(6,2)  [not null, note: 'Late-payment penalty percentage']
+  effective_from date          [not null, note: 'Applies to billing cycles on/after this date']
+  description    varchar(255)
+  created_at     timestamp     [not null]
+
+  indexes {
+    (meter_type, version) [unique, name: 'uq_tariffs_type_version']
+  }
+  Note: 'A versioned tariff; new versions only apply to future billing cycles.'
+}
+
+Table tariff_tiers {
+  id            bigint        [pk, increment]
+  tariff_id     bigint        [not null, ref: > tariffs.id]
+  min_units     numeric(14,3) [not null, note: 'Inclusive lower bound']
+  max_units     numeric(14,3) [note: 'Exclusive upper bound; null = unbounded top tier']
+  rate_per_unit numeric(14,2) [not null]
+
+  Note: 'A consumption band. Tiers must be contiguous and start at 0. A flat tariff is one tier [0, +inf).'
+}
+
+// ---------------------------------------------------------------------------
+//  Bills, payments & notifications
+// ---------------------------------------------------------------------------
+
+Table bills {
+  id                  bigint        [pk, increment]
+  bill_number         varchar(40)   [not null, unique]
+  customer_id         bigint        [not null, ref: > customers.id]
+  meter_id            bigint        [not null, ref: > meters.id]
+  reading_id          bigint        [not null, unique, ref: > meter_readings.id, note: 'At most one bill per reading']
+  tariff_id           bigint        [not null, ref: > tariffs.id, note: 'Tariff version applied']
+  billing_year        int           [not null]
+  billing_month       int           [not null]
+  consumption         numeric(14,3) [not null]
+  consumption_charge  numeric(14,2) [not null]
+  service_charge      numeric(14,2) [not null]
+  tax_amount          numeric(14,2) [not null]
+  penalty_amount      numeric(14,2) [not null, default: 0]
+  total_amount        numeric(14,2) [not null]
+  amount_paid         numeric(14,2) [not null, default: 0]
+  outstanding_balance numeric(14,2) [not null]
+  penalty_applied     boolean       [not null, default: false]
+  status              bill_status   [not null, default: 'PENDING']
+  due_date            date          [not null]
+  created_at          timestamp     [not null]
+  updated_at          timestamp     [not null]
+
+  Note: 'Monthly postpaid bill. Insert fires a BILL_GENERATED notification; transition to PAID fires PAYMENT_COMPLETED.'
+}
+
+Table payments {
+  id                bigint         [pk, increment]
+  payment_reference varchar(40)    [not null, unique]
+  bill_id           bigint         [not null, ref: > bills.id]
+  amount            numeric(14,2)  [not null, note: 'Supports partial and full payment']
+  method            payment_method [not null]
+  payment_date      date           [not null]
+  recorded_by       bigint         [ref: > users.id, note: 'Finance user who recorded it']
+  created_at        timestamp      [not null]
+
+  Note: 'A payment against a bill; reduces outstanding_balance.'
+}
+
+Table notifications {
+  id          bigint            [pk, increment]
+  customer_id bigint            [not null, ref: > customers.id]
+  bill_id     bigint            [ref: > bills.id]
+  type        notification_type [not null]
+  message     text              [not null]
+  created_at  timestamp         [not null]
+
+  Note: '''
+    Produced by database triggers, never by the application.
+    Message format:
+    "Dear <CustomerName>,
+     Your <Month/Year> utility bill of <Amount> FRW has been successfully processed."
+  '''
+}
+
+// ---------------------------------------------------------------------------
+//  Table groups (visual layout)
+// ---------------------------------------------------------------------------
+
+TableGroup identity_security {
+  users
+  auth_tokens
+}
+
+TableGroup customers_meters {
+  customers
+  meters
+  meter_readings
+}
+
+TableGroup billing {
+  tariffs
+  tariff_tiers
+  bills
+  payments
+  notifications
+}

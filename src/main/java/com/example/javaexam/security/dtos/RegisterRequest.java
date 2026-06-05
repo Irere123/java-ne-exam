@@ -30,10 +30,15 @@ public record RegisterRequest(
         @Schema(example = "alice.mugisha@example.com")
         String email,
 
+        @Pattern(regexp = ValidationPatterns.COUNTRY_CODE,
+                message = "Country code must be a '+' followed by 1-4 digits")
+        @Schema(example = "+250", description = "Dialing code; defaults to +250 (Rwanda) when omitted")
+        String countryCode,
+
         @NotBlank(message = "Phone number is required")
-        @Pattern(regexp = ValidationPatterns.PHONE,
-                message = "Phone number must be 10-15 digits, with an optional leading '+'")
-        @Schema(example = "+250788123456")
+        @Pattern(regexp = ValidationPatterns.PHONE_NATIONAL,
+                message = "Phone number must be 6-12 digits, without the country code")
+        @Schema(example = "788123456")
         String phoneNumber,
 
         @NotBlank(message = "Password is required")

@@ -10,6 +10,12 @@ public final class ValidationPatterns {
     /** Phone number: optional leading {@code +} and 10-15 digits (e.g. +250788123456). */
     public static final String PHONE = "^\\+?[0-9]{10,15}$";
 
+    /** Country dialing code: a leading {@code +} and 1-4 digits (e.g. {@code +250} for Rwanda). */
+    public static final String COUNTRY_CODE = "^\\+[0-9]{1,4}$";
+
+    /** Subscriber number without the country code: 6-12 digits (e.g. {@code 788123456}). */
+    public static final String PHONE_NATIONAL = "^[0-9]{6,12}$";
+
     /** Rwandan National ID: exactly 16 digits. */
     public static final String NATIONAL_ID = "^[0-9]{16}$";
 

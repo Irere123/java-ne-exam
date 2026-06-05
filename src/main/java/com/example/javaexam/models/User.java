@@ -1,6 +1,7 @@
 package com.example.javaexam.models;
 
 import com.example.javaexam.models.enums.Role;
+import com.example.javaexam.models.enums.Status;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -54,6 +55,12 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
+    /** Country dialing code, e.g. {@code +250} for Rwanda (the default). */
+    @Column(name = "country_code", nullable = false, length = 5)
+    @Builder.Default
+    private String countryCode = "+250";
+
+    /** Subscriber number without the country code, e.g. {@code 788123456}. */
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
@@ -65,10 +72,20 @@ public class User implements UserDetails {
     @Builder.Default
     private Role role = Role.CUSTOMER;
 
-    /** Whether the account is active. Stays {@code false} until email verification. */
+    /**
+     * Email-verification flag: {@code false} until the user confirms their
+     * email. This is distinct from {@link #status}, which is the admin-managed
+     * Active/Inactive state.
+     */
     @Column(nullable = false)
     @Builder.Default
     private boolean enabled = false;
+
+    /** Admin-managed Active/Inactive state; an inactive user cannot log in. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private Status status = Status.ACTIVE;
 
     /**
      * Incremented to invalidate every access and refresh token the user holds.
@@ -106,5 +123,11 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /** An inactive account is treated as locked, so Spring Security blocks login. */
+    @Override
+    public boolean isAccountNonLocked() {
+        return status == Status.ACTIVE;
     }
 }

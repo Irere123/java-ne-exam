@@ -61,6 +61,7 @@ public class AuthService {
                 .firstName(request.firstName().trim())
                 .lastName(request.lastName().trim())
                 .email(email)
+                .countryCode(normalizeCountryCode(request.countryCode()))
                 .phoneNumber(request.phoneNumber().trim())
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.CUSTOMER)
@@ -215,6 +216,11 @@ public class AuthService {
 
         log.info("Password reset for {}", user.getEmail());
         return new ApiResponse("Password updated successfully. You can now log in.");
+    }
+
+    /** Falls back to Rwanda's {@code +250} when no country code is supplied. */
+    static String normalizeCountryCode(String countryCode) {
+        return (countryCode == null || countryCode.isBlank()) ? "+250" : countryCode.trim();
     }
 
     private void sendVerificationToken(User user) {
