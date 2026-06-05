@@ -11,12 +11,16 @@ import com.example.javaexam.security.dtos.ResendVerificationRequest;
 import com.example.javaexam.security.dtos.ResetPasswordRequest;
 import com.example.javaexam.services.AuthService;
 import com.example.javaexam.services.TokenService;
+import com.example.javaexam.utils.ValidationPatterns;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Authentication", description = "Registration, verification, login, token refresh, and password reset")
 @SecurityRequirements // public endpoints: clears the global JWT requirement in Swagger UI
 public class AuthController {
@@ -45,7 +50,11 @@ public class AuthController {
 
     @GetMapping("/verify")
     @Operation(summary = "Confirm an email-verification token and enable the account")
-    public ApiResponse verify(@RequestParam("token") String token) {
+    public ApiResponse verify(
+            @RequestParam("token")
+            @NotBlank(message = "Token is required")
+            @Pattern(regexp = ValidationPatterns.UUID, message = "Token must be a valid UUID")
+            String token) {
         return authService.verify(token);
     }
 

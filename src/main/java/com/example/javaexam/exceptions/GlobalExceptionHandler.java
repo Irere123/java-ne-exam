@@ -1,6 +1,7 @@
 package com.example.javaexam.exceptions;
 
 import com.example.javaexam.models.domains.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,15 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage());
         }
+        return new ErrorResponse("Validation failed: " + fieldErrors)
+                .toResponseEntity(HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        ex.getConstraintViolations().forEach(violation ->
+                fieldErrors.put(violation.getPropertyPath().toString(), violation.getMessage()));
         return new ErrorResponse("Validation failed: " + fieldErrors)
                 .toResponseEntity(HttpStatus.BAD_REQUEST);
     }
