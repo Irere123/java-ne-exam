@@ -23,6 +23,6 @@ public record AuthResponse(
         @Schema(example = "alice.mugisha@example.com")
         String email,
 
-        @Schema(example = "USER")
+        @Schema(example = "CUSTOMER")
         Role role
 ) {}

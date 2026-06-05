@@ -35,6 +35,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.admin.last-name}")
     private String adminLastName;
 
+    @Value("${app.admin.phone}")
+    private String adminPhone;
+
     @Override
     public void run(String... args) {
         String email = adminEmail.trim().toLowerCase();
@@ -46,6 +49,7 @@ public class DataInitializer implements CommandLineRunner {
                 .firstName(adminFirstName)
                 .lastName(adminLastName)
                 .email(email)
+                .phoneNumber(adminPhone)
                 .password(passwordEncoder.encode(adminPassword))
                 .role(Role.ADMIN)
                 .enabled(true)

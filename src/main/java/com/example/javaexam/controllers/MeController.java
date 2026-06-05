@@ -34,6 +34,7 @@ public class MeController {
         profile.put("firstName", user.getFirstName());
         profile.put("lastName", user.getLastName());
         profile.put("email", user.getEmail());
+        profile.put("phoneNumber", user.getPhoneNumber());
         profile.put("role", user.getRole());
         profile.put("enabled", user.isEnabled());
         return profile;

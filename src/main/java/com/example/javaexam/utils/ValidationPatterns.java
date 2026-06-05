@@ -7,6 +7,15 @@ public final class ValidationPatterns {
     public static final String UUID = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$";
     public static final String JWT = "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$";
 
+    /** Phone number: optional leading {@code +} and 10-15 digits (e.g. +250788123456). */
+    public static final String PHONE = "^\\+?[0-9]{10,15}$";
+
+    /** Rwandan National ID: exactly 16 digits. */
+    public static final String NATIONAL_ID = "^[0-9]{16}$";
+
+    /** Meter number: 4-20 uppercase letters, digits or hyphens (e.g. WTR-000123). */
+    public static final String METER_NUMBER = "^[A-Z0-9-]{4,20}$";
+
     private ValidationPatterns() {
     }
 }

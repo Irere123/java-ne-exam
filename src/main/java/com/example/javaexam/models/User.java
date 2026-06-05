@@ -54,13 +54,16 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
     @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    private Role role = Role.USER;
+    private Role role = Role.CUSTOMER;
 
     /** Whether the account is active. Stays {@code false} until email verification. */
     @Column(nullable = false)
