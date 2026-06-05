@@ -217,8 +217,6 @@ public class AuthService {
         return new ApiResponse("Password updated successfully. You can now log in.");
     }
 
-    // --- Helpers ----------------------------------------------------------
-
     private void sendVerificationToken(User user) {
         String token = UUID.randomUUID().toString();
         AuthToken verificationToken = AuthToken.builder()

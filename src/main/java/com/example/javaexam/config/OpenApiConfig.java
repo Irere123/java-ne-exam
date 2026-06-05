@@ -30,9 +30,12 @@ public class OpenApiConfig {
     public OpenAPI apiDocumentation() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Java Exam API")
-                        .description("REST API with JWT authentication, role-based access, "
-                                + "and email verification.")
+                        .title("Utility Billing & Metering API")
+                        .description("REST API for a postpaid water and electricity utility: manage "
+                                + "customers and meters, capture monthly readings, configure versioned "
+                                + "tariffs, generate and approve bills, record payments, and process "
+                                + "overdue penalties and notifications. Secured with JWT bearer tokens "
+                                + "and role-based access (ADMIN, OPERATOR, FINANCE, CUSTOMER).")
                         .version("v1")
                         .contact(new Contact().name("Java Exam")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))

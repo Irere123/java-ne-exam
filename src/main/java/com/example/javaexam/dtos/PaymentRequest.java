@@ -9,7 +9,7 @@ import jakarta.validation.constraints.PastOrPresent;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Payload to record a payment against a bill (Task 5). */
+/** Payload to record a payment against a bill. */
 public record PaymentRequest(
 
         @NotBlank(message = "Bill reference is required")
