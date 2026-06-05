@@ -20,7 +20,8 @@ Built with **Spring Boot 4**, **Spring Data JPA**, **Spring Security (JWT)**,
 - **Postpaid billing** — generate a bill from a reading, approve it, and settle it
   through full or partial payments.
 - **Automated notifications** — PostgreSQL triggers raise a notification when a bill
-  is generated and again when it is fully paid.
+  is generated and again when it is fully paid; a scheduled dispatcher then emails
+  each one to the customer (retrying transient failures).
 - **Late penalties** — a cursor-based stored procedure applies penalties to overdue,
   unpaid bills on demand.
 - **Stateless JWT auth** — access + refresh tokens, role-based access control, email

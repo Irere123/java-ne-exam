@@ -11,6 +11,7 @@ public record NotificationResponse(
         Long billId,
         NotificationType type,
         String message,
+        boolean emailSent,
         LocalDateTime createdAt
 ) {
     public static NotificationResponse from(Notification n) {
@@ -20,6 +21,7 @@ public record NotificationResponse(
                 n.getBill() != null ? n.getBill().getId() : null,
                 n.getType(),
                 n.getMessage(),
+                n.isEmailSent(),
                 n.getCreatedAt());
     }
 }

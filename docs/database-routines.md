@@ -44,3 +44,25 @@ the same database.
 Because these transitions happen in the database, the notification rows are created
 atomically with the bill change they describe — there is no application code path
 that can generate a bill or complete a payment without the matching notification.
+
+## Email delivery (outbox dispatcher)
+
+The triggers only *persist* a notification; emailing it is the application's job.
+Since the rows are created at the database level, the app reacts to them with an
+outbox-style poller rather than firing emails inline:
+
+- Each notification carries an `email_sent` flag (migration `V8`, default `false`).
+- `NotificationDispatchService` runs on a fixed schedule
+  (`app.notifications.dispatch-interval-ms`, default 30s). Each run picks up the
+  oldest undelivered notifications, emails each customer the stored `message`
+  (subject derived from the notification `type`), and flips `email_sent` to `true`
+  **only after the send succeeds**.
+- Sending uses `EmailService.sendNotificationEmail(...)`, which never throws: a
+  transient SMTP failure leaves `email_sent = false` so the notification is retried
+  on the next run. This gives at-least-once delivery with idempotent marking — every
+  notification is emailed exactly once under normal operation.
+- When mail is disabled (`app.mail.enabled=false`) the body is logged and the
+  notification is marked sent, so local runs without SMTP don't loop forever.
+
+`GET /api/notifications` (and the customer's `/api/me/notifications`) expose the
+`emailSent` flag so delivery status is visible.

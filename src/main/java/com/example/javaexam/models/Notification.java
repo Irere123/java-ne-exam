@@ -20,9 +20,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * A customer notification. Rows are written by database triggers on
- * bill generation and on full payment, never by application code, so this
- * entity is read-only from the API's perspective.
+ * A customer notification. Rows are written by database triggers on bill
+ * generation and on full payment, never by application code. The only field the
+ * application maintains is {@link #emailSent}, flipped once the notification has
+ * been emailed to the customer.
  */
 @Entity
 @Table(name = "notifications")
@@ -51,6 +52,11 @@ public class Notification {
 
     @Column(nullable = false, length = 1000)
     private String message;
+
+    /** Whether this notification has been emailed to the customer yet. */
+    @Column(name = "email_sent", nullable = false)
+    @Builder.Default
+    private boolean emailSent = false;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

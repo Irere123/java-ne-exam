@@ -1,6 +1,7 @@
 package com.example.javaexam.services;
 
 import com.example.javaexam.exceptions.ApiException;
+import com.example.javaexam.models.enums.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,6 +72,41 @@ public class EmailService {
                 """.formatted(firstName, resetUrl));
 
         send(message, "Password-reset email sent to {}", to);
+    }
+
+    /**
+     * Emails a customer notification. Unlike the account emails above, this never
+     * throws: it returns {@code true} on success and {@code false} on failure so
+     * the dispatcher can leave the notification unsent and retry it later. When
+     * mail is disabled the body is logged and the send is reported as successful.
+     */
+    public boolean sendNotificationEmail(String to, NotificationType type, String body) {
+        if (!mailEnabled) {
+            log.info("Mail disabled. Notification for {} ({}):\n{}", to, type, body);
+            return true;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to);
+        message.setSubject(subjectFor(type));
+        message.setText(body);
+
+        try {
+            mailSender.send(message);
+            log.info("Notification email ({}) sent to {}", type, to);
+            return true;
+        } catch (MailException ex) {
+            log.warn("Failed to send notification email to {}: {}", to, ex.getMessage());
+            return false;
+        }
+    }
+
+    private static String subjectFor(NotificationType type) {
+        return switch (type) {
+            case BILL_GENERATED -> "Your utility bill is ready";
+            case PAYMENT_COMPLETED -> "Payment received — thank you";
+        };
     }
 
     private void send(SimpleMailMessage message, String logMessage, String to) {
