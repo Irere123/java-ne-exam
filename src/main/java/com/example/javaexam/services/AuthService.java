@@ -9,13 +9,12 @@ import com.example.javaexam.exceptions.EmailAlreadyUsedException;
 import com.example.javaexam.exceptions.InvalidPasswordException;
 import com.example.javaexam.exceptions.PasswordResetException;
 import com.example.javaexam.exceptions.VerificationException;
-import com.example.javaexam.models.PasswordResetToken;
+import com.example.javaexam.models.AuthToken;
 import com.example.javaexam.models.enums.Role;
+import com.example.javaexam.models.enums.TokenType;
 import com.example.javaexam.models.User;
-import com.example.javaexam.models.VerificationToken;
-import com.example.javaexam.repositories.PasswordResetTokenRepository;
+import com.example.javaexam.repositories.AuthTokenRepository;
 import com.example.javaexam.repositories.UserRepository;
-import com.example.javaexam.repositories.VerificationTokenRepository;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final VerificationTokenRepository verificationTokenRepository;
-    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final AuthTokenRepository authTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
@@ -82,10 +80,10 @@ public class AuthService {
 
     @Transactional
     public ApiResponse verify(String token) {
-        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
+        AuthToken verificationToken = authTokenRepository.findByTypeAndToken(TokenType.EMAIL_VERIFICATION, token)
                 .orElseThrow(() -> new VerificationException("Invalid verification token"));
 
-        if (verificationToken.isConfirmed()) {
+        if (verificationToken.isConsumed()) {
             throw new VerificationException("This verification link has already been used");
         }
         if (verificationToken.isExpired()) {
@@ -96,8 +94,8 @@ public class AuthService {
         user.setEnabled(true);
         userRepository.save(user);
 
-        verificationToken.setConfirmedAt(LocalDateTime.now());
-        verificationTokenRepository.save(verificationToken);
+        verificationToken.setConsumedAt(LocalDateTime.now());
+        authTokenRepository.save(verificationToken);
 
         log.info("Verified email for user {}", user.getEmail());
         return new ApiResponse("Email verified successfully. You can now log in.");
@@ -182,12 +180,13 @@ public class AuthService {
 
         userRepository.findByEmail(email).ifPresent(user -> {
             String token = UUID.randomUUID().toString();
-            PasswordResetToken resetToken = PasswordResetToken.builder()
+            AuthToken resetToken = AuthToken.builder()
+                    .type(TokenType.PASSWORD_RESET)
                     .token(token)
                     .user(user)
                     .expiresAt(LocalDateTime.now().plusMinutes(passwordResetExpirationMinutes))
                     .build();
-            passwordResetTokenRepository.save(resetToken);
+            authTokenRepository.save(resetToken);
 
             String resetUrl = baseUrl + "/reset-password?token=" + token;
             emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), resetUrl);
@@ -200,10 +199,10 @@ public class AuthService {
     /** Completes the forgot-password flow and signs out all existing sessions. */
     @Transactional
     public ApiResponse resetPassword(String token, String newPassword) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+        AuthToken resetToken = authTokenRepository.findByTypeAndToken(TokenType.PASSWORD_RESET, token)
                 .orElseThrow(() -> new PasswordResetException("Invalid password-reset token"));
 
-        if (resetToken.isUsed()) {
+        if (resetToken.isConsumed()) {
             throw new PasswordResetException("This reset link has already been used");
         }
         if (resetToken.isExpired()) {
@@ -215,8 +214,8 @@ public class AuthService {
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
 
-        resetToken.setUsedAt(LocalDateTime.now());
-        passwordResetTokenRepository.save(resetToken);
+        resetToken.setConsumedAt(LocalDateTime.now());
+        authTokenRepository.save(resetToken);
 
         log.info("Password reset for {}", user.getEmail());
         return new ApiResponse("Password updated successfully. You can now log in.");
@@ -226,12 +225,13 @@ public class AuthService {
 
     private void sendVerificationToken(User user) {
         String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = VerificationToken.builder()
+        AuthToken verificationToken = AuthToken.builder()
+                .type(TokenType.EMAIL_VERIFICATION)
                 .token(token)
                 .user(user)
                 .expiresAt(LocalDateTime.now().plusMinutes(verificationExpirationMinutes))
                 .build();
-        verificationTokenRepository.save(verificationToken);
+        authTokenRepository.save(verificationToken);
 
         String verificationUrl = baseUrl + "/api/auth/verify?token=" + token;
         emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), verificationUrl);

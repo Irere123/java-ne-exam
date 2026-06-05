@@ -1,7 +1,10 @@
 package com.example.javaexam.models;
 
+import com.example.javaexam.models.enums.TokenType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -9,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,36 +21,40 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-/**
- * A single-use, time-limited token emailed for the "forgot password" flow.
- * Consuming it sets a new password and marks {@code usedAt}.
- */
 @Entity
-@Table(name = "password_reset_tokens")
+@Table(
+        name = "auth_tokens",
+        uniqueConstraints = @UniqueConstraint(name = "uq_auth_tokens_type_token", columnNames = {"type", "token"}))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PasswordResetToken {
+public class AuthToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private TokenType type;
+
+    @Column(nullable = false)
     private String token;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    /** Set when the token is consumed; {@code null} while still valid. */
-    @Column(name = "used_at")
-    private LocalDateTime usedAt;
+    @Column(name = "consumed_at")
+    private LocalDateTime consumedAt;
+
+    @Column(name = "revoked_at")
+    private LocalDateTime revokedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -56,7 +64,7 @@ public class PasswordResetToken {
         return expiresAt.isBefore(LocalDateTime.now());
     }
 
-    public boolean isUsed() {
-        return usedAt != null;
+    public boolean isConsumed() {
+        return consumedAt != null;
     }
 }

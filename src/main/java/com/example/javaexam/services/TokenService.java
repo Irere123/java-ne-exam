@@ -2,9 +2,10 @@ package com.example.javaexam.services;
 
 import com.example.javaexam.security.dtos.AuthResponse;
 import com.example.javaexam.exceptions.InvalidTokenException;
-import com.example.javaexam.models.RevokedRefreshToken;
+import com.example.javaexam.models.AuthToken;
 import com.example.javaexam.models.User;
-import com.example.javaexam.repositories.RevokedRefreshTokenRepository;
+import com.example.javaexam.models.enums.TokenType;
+import com.example.javaexam.repositories.AuthTokenRepository;
 import com.example.javaexam.repositories.UserRepository;
 import com.example.javaexam.security.JwtService;
 import io.jsonwebtoken.Claims;
@@ -23,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Access tokens are stateless. Refresh tokens are stateless too, but each
  * carries a unique {@code jti}; rotated/revoked ids are remembered in the
- * {@link RevokedRefreshTokenRepository} denylist so a replayed token can be
+ * {@link AuthTokenRepository} denylist so a replayed token can be
  * detected and a single device can be logged out.
  */
 @Service
@@ -33,7 +34,7 @@ public class TokenService {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final RevokedRefreshTokenRepository revokedRepository;
+    private final AuthTokenRepository authTokenRepository;
 
     /** Builds a fresh access + refresh token pair for the given user. */
     public AuthResponse issueTokens(User user) {
@@ -66,7 +67,7 @@ public class TokenService {
                 .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
 
         // Reuse detection: a denylisted jti means this token was already used.
-        if (jti != null && revokedRepository.existsById(jti)) {
+        if (jti != null && authTokenRepository.existsByTypeAndToken(TokenType.REFRESH_REVOCATION, jti)) {
             user.setTokenVersion(user.getTokenVersion() + 1);
             userRepository.save(user);
             log.warn("Refresh token reuse detected for {} - all sessions revoked", email);
@@ -108,13 +109,15 @@ public class TokenService {
     }
 
     private void revoke(String jti, Date expiration) {
-        if (jti == null || revokedRepository.existsById(jti)) {
+        if (jti == null || authTokenRepository.existsByTypeAndToken(TokenType.REFRESH_REVOCATION, jti)) {
             return;
         }
         LocalDateTime expiresAt = LocalDateTime.ofInstant(expiration.toInstant(), ZoneId.systemDefault());
-        revokedRepository.save(RevokedRefreshToken.builder()
-                .jti(jti)
+        authTokenRepository.save(AuthToken.builder()
+                .type(TokenType.REFRESH_REVOCATION)
+                .token(jti)
                 .expiresAt(expiresAt)
+                .revokedAt(LocalDateTime.now())
                 .build());
     }
 }
