@@ -1,0 +1,1657 @@
+{
+  "info": {
+    "_postman_id": "8f2a6c14-9b3d-4e21-9a77-6c0b1e2f3a40",
+    "name": "Utility Billing & Metering API (java-exam)",
+    "description": "End-to-end test collection for the Utility Billing & Metering API.\n\nRun the requests top-to-bottom (Collection Runner or one by one) for a full billing lifecycle: log in as the seed admin, create staff/customer accounts, configure a tariff, register a customer + meter, capture a reading, generate & approve a bill, record payments, and view results as the customer.\n\nNotes:\n- Base URL defaults to http://localhost:8080 (collection variable `baseUrl`).\n- Auth is JWT bearer. The collection's default auth uses `{{adminAccessToken}}`; operator/finance/customer requests override it with their own captured tokens.\n- Tokens and resource IDs are captured automatically by test scripts into collection variables.\n- A fresh, unique data set (emails, national ID) is generated on every 'Login as Admin' run, so the collection can be re-run repeatedly against the same database.\n- The stored-procedure penalty run and trigger-generated notifications are PostgreSQL features (the app's configured datasource).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{adminAccessToken}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Safety net: make sure date + unique test-data variables always exist,",
+          "// even when a single request is run on its own. 'Login as Admin' resets",
+          "// runId at the start of each full pass so every run uses fresh data.",
+          "function pad(n){ return String(n).padStart(2,'0'); }",
+          "const now = new Date();",
+          "const today = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());",
+          "const firstOfMonth = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-01';",
+          "pm.collectionVariables.set('today', today);",
+          "pm.collectionVariables.set('firstOfMonth', firstOfMonth);",
+          "if (!pm.collectionVariables.get('runId')) { pm.collectionVariables.set('runId', String(now.getTime())); }",
+          "const runId = pm.collectionVariables.get('runId');",
+          "pm.collectionVariables.set('customerEmail', 'customer.' + runId + '@example.com');",
+          "pm.collectionVariables.set('operatorEmail', 'operator.' + runId + '@wasac.rw');",
+          "pm.collectionVariables.set('financeEmail', 'finance.' + runId + '@wasac.rw');",
+          "pm.collectionVariables.set('selfSignupEmail', 'signup.' + runId + '@example.com');",
+          "let nid = ('1' + runId).replace(/[^0-9]/g, '');",
+          "nid = (nid + '0000000000000000').slice(0, 16);",
+          "pm.collectionVariables.set('nationalId', nid);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminEmail", "value": "admin@java-exam.local" },
+    { "key": "adminPassword", "value": "admin12345" },
+    { "key": "operatorPassword", "value": "Operator1!" },
+    { "key": "financePassword", "value": "Finance1!" },
+    { "key": "customerPassword", "value": "Customer1!" },
+    { "key": "customerNewPassword", "value": "Customer2@" },
+    { "key": "verificationToken", "value": "5c0f0d7e-2f7d-4f91-9d73-8e9b7d2a66f1" },
+    { "key": "resetToken", "value": "5c0f0d7e-2f7d-4f91-9d73-8e9b7d2a66f1" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "adminRefreshToken", "value": "" },
+    { "key": "operatorAccessToken", "value": "" },
+    { "key": "financeAccessToken", "value": "" },
+    { "key": "customerAccessToken", "value": "" },
+    { "key": "customerRefreshToken", "value": "" },
+    { "key": "operatorUserId", "value": "" },
+    { "key": "financeUserId", "value": "" },
+    { "key": "customerUserId", "value": "" },
+    { "key": "tariffId", "value": "" },
+    { "key": "customerId", "value": "" },
+    { "key": "meterId", "value": "" },
+    { "key": "meterNumber", "value": "" },
+    { "key": "readingId", "value": "" },
+    { "key": "billId", "value": "" },
+    { "key": "billNumber", "value": "" },
+    { "key": "remainingBalance", "value": "" },
+    { "key": "runId", "value": "" },
+    { "key": "today", "value": "" },
+    { "key": "firstOfMonth", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns an access token', () => pm.expect(res.accessToken).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('adminAccessToken', res.accessToken);",
+                  "pm.collectionVariables.set('adminRefreshToken', res.refreshToken);",
+                  "// Start a fresh, unique data set for this run.",
+                  "pm.collectionVariables.set('runId', String(Date.now()));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "login" ]
+            },
+            "description": "Authenticate as the seed ADMIN account and capture the access + refresh tokens. Also resets the run's unique test data. Run this first."
+          }
+        },
+        {
+          "name": "Register (self-service signup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Self\",\n  \"lastName\": \"Signup\",\n  \"email\": \"{{selfSignupEmail}}\",\n  \"countryCode\": \"+250\",\n  \"phoneNumber\": \"788123456\",\n  \"password\": \"ExamPass1!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "register" ]
+            },
+            "description": "Public self-signup. Creates a disabled CUSTOMER account and sends a verification email; the account cannot log in until verified."
+          }
+        },
+        {
+          "name": "Resend Verification Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{selfSignupEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/resend-verification",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "resend-verification" ]
+            },
+            "description": "Re-sends the verification email for an unverified account."
+          }
+        },
+        {
+          "name": "Refresh Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "// Refresh rotates both tokens; store the new pair.",
+                  "pm.collectionVariables.set('adminAccessToken', res.accessToken);",
+                  "pm.collectionVariables.set('adminRefreshToken', res.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "refresh" ]
+            },
+            "description": "Exchanges the refresh token for a new access + refresh pair (the old refresh token is revoked)."
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "forgot-password" ]
+            },
+            "description": "Sends a password-reset link to the account's email (always 200, even for unknown emails, to avoid account enumeration)."
+          }
+        },
+        {
+          "name": "Verify Email (manual)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify?token={{verificationToken}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "verify" ],
+              "query": [ { "key": "token", "value": "{{verificationToken}}" } ]
+            },
+            "description": "Confirms an email-verification token. Run manually: copy the real token from the verification email into the `verificationToken` variable first. (No test assertion, since it needs a live token.)"
+          }
+        },
+        {
+          "name": "Reset Password (manual)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"ResetPass3!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "reset-password" ]
+            },
+            "description": "Sets a new password using a reset token. Run manually: paste the real token from the reset email into the `resetToken` variable first."
+          }
+        },
+        {
+          "name": "Logout (single device)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "logout" ]
+            },
+            "description": "Revokes the current refresh token. The admin access token stays valid until it expires, so the rest of the collection still runs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Admin - User Management",
+      "item": [
+        {
+          "name": "Create Operator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('operatorUserId', res.id);",
+                  "pm.test('Role is OPERATOR', () => pm.expect(res.role).to.eql('OPERATOR'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Olivier\",\n  \"lastName\": \"Operator\",\n  \"email\": \"{{operatorEmail}}\",\n  \"countryCode\": \"+250\",\n  \"phoneNumber\": \"788654321\",\n  \"password\": \"{{operatorPassword}}\",\n  \"role\": \"OPERATOR\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users" ]
+            },
+            "description": "ADMIN creates an enabled OPERATOR account (no email verification needed)."
+          }
+        },
+        {
+          "name": "Create Finance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('financeUserId', res.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Fiona\",\n  \"lastName\": \"Finance\",\n  \"email\": \"{{financeEmail}}\",\n  \"countryCode\": \"+250\",\n  \"phoneNumber\": \"788654322\",\n  \"password\": \"{{financePassword}}\",\n  \"role\": \"FINANCE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users" ]
+            },
+            "description": "ADMIN creates an enabled FINANCE account."
+          }
+        },
+        {
+          "name": "Create Customer Login Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('customerUserId', res.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Cathy\",\n  \"lastName\": \"Customer\",\n  \"email\": \"{{customerEmail}}\",\n  \"countryCode\": \"+250\",\n  \"phoneNumber\": \"788654323\",\n  \"password\": \"{{customerPassword}}\",\n  \"role\": \"CUSTOMER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users" ]
+            },
+            "description": "Creates the CUSTOMER login account. It uses the SAME email as the customer record created later, so the two are auto-linked for the /api/me self-service endpoints."
+          }
+        },
+        {
+          "name": "List Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users" ]
+            },
+            "description": "Lists every user account (ADMIN)."
+          }
+        },
+        {
+          "name": "Get User by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{financeUserId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users", "{{financeUserId}}" ]
+            },
+            "description": "Fetches a single user by id (ADMIN)."
+          }
+        },
+        {
+          "name": "Update User Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is FINANCE', () => pm.expect(pm.response.json().role).to.eql('FINANCE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"FINANCE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{financeUserId}}/role",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users", "{{financeUserId}}", "role" ]
+            },
+            "description": "Changes a user's role (kept as FINANCE here so the finance login below still works). Changing a role revokes the user's existing sessions."
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is INACTIVE', () => pm.expect(pm.response.json().status).to.eql('INACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{financeUserId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users", "{{financeUserId}}", "status" ]
+            },
+            "description": "Deactivates a user account; this also revokes their sessions. Reactivated by the next request so the finance login still works."
+          }
+        },
+        {
+          "name": "Reactivate User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is ACTIVE', () => pm.expect(pm.response.json().status).to.eql('ACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{financeUserId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "admin", "users", "{{financeUserId}}", "status" ]
+            },
+            "description": "Reactivates the finance user."
+          }
+        },
+        {
+          "name": "Login as Operator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('operatorAccessToken', res.accessToken);",
+                  "pm.test('Role is OPERATOR', () => pm.expect(res.role).to.eql('OPERATOR'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{operatorEmail}}\",\n  \"password\": \"{{operatorPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "login" ]
+            },
+            "description": "Logs in the operator account and captures its access token for the operator-only steps."
+          }
+        },
+        {
+          "name": "Login as Finance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('financeAccessToken', res.accessToken);",
+                  "pm.test('Role is FINANCE', () => pm.expect(res.role).to.eql('FINANCE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{financeEmail}}\",\n  \"password\": \"{{financePassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "login" ]
+            },
+            "description": "Logs in the finance account and captures its access token for the billing/payment steps."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Tariffs",
+      "item": [
+        {
+          "name": "Create Tariff (WATER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('tariffId', res.id);",
+                  "pm.test('Has at least one tier', () => pm.expect(res.tiers.length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meterType\": \"WATER\",\n  \"serviceCharge\": 2000.00,\n  \"vatRate\": 18.00,\n  \"penaltyRate\": 5.00,\n  \"effectiveFrom\": \"{{firstOfMonth}}\",\n  \"description\": \"WASAC water tariff (Postman test)\",\n  \"tiers\": [\n    { \"minUnits\": 0, \"maxUnits\": 100, \"ratePerUnit\": 323.00 },\n    { \"minUnits\": 100, \"maxUnits\": null, \"ratePerUnit\": 450.00 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tariffs",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "tariffs" ]
+            },
+            "description": "Configures a tiered WATER tariff effective from the first of the current month, so the reading captured below can be billed against it (ADMIN)."
+          }
+        },
+        {
+          "name": "List Tariffs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tariffs",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "tariffs" ]
+            },
+            "description": "Lists all tariff versions (ADMIN/FINANCE)."
+          }
+        },
+        {
+          "name": "List Tariffs by Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tariffs?meterType=WATER",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "tariffs" ],
+              "query": [ { "key": "meterType", "value": "WATER" } ]
+            },
+            "description": "Lists tariffs filtered by meter type (WATER or ELECTRICITY)."
+          }
+        },
+        {
+          "name": "Get Tariff by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tariffs/{{tariffId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "tariffs", "{{tariffId}}" ]
+            },
+            "description": "Fetches a single tariff with its tiers."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Customers",
+      "item": [
+        {
+          "name": "Create Customer (as Operator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('customerId', res.id);",
+                  "pm.test('Linked to a login account', () => pm.expect(res.userId).to.not.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jean Bosco Habimana\",\n  \"nationalId\": \"{{nationalId}}\",\n  \"email\": \"{{customerEmail}}\",\n  \"phoneNumber\": \"+250788123456\",\n  \"address\": \"KG 11 Ave, Kigali\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers" ]
+            },
+            "description": "Registers a customer (ADMIN/OPERATOR), here using the operator token. Because the email matches the CUSTOMER login account created earlier, the customer is auto-linked to it (userId is populated)."
+          }
+        },
+        {
+          "name": "Get Customer by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers", "{{customerId}}" ]
+            },
+            "description": "Fetches a single customer (ADMIN/OPERATOR/FINANCE)."
+          }
+        },
+        {
+          "name": "List Customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers" ]
+            },
+            "description": "Lists all customers (ADMIN/OPERATOR/FINANCE)."
+          }
+        },
+        {
+          "name": "Update Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jean Bosco Habimana\",\n  \"nationalId\": \"{{nationalId}}\",\n  \"email\": \"{{customerEmail}}\",\n  \"phoneNumber\": \"+250788123457\",\n  \"address\": \"KG 22 Ave, Kigali\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers", "{{customerId}}" ]
+            },
+            "description": "Updates a customer's details (ADMIN/OPERATOR). Email and national ID are kept the same to avoid duplicate conflicts."
+          }
+        },
+        {
+          "name": "Deactivate Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is INACTIVE', () => pm.expect(pm.response.json().status).to.eql('INACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers", "{{customerId}}", "status" ]
+            },
+            "description": "Deactivates a customer (ADMIN only). Inactive customers cannot be billed; the next request reactivates so billing succeeds."
+          }
+        },
+        {
+          "name": "Activate Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is ACTIVE', () => pm.expect(pm.response.json().status).to.eql('ACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "customers", "{{customerId}}", "status" ]
+            },
+            "description": "Reactivates the customer (ADMIN only)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Meters",
+      "item": [
+        {
+          "name": "Register Meter (as Operator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('meterId', res.id);",
+                  "pm.collectionVariables.set('meterNumber', res.meterNumber);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"meterType\": \"WATER\",\n  \"installationDate\": \"{{firstOfMonth}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meters",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters" ]
+            },
+            "description": "Registers a WATER meter for the customer (ADMIN/OPERATOR). Meter number is omitted, so the server generates one (e.g. WTR-000123)."
+          }
+        },
+        {
+          "name": "Get Meter by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/meters/{{meterId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters", "{{meterId}}" ]
+            },
+            "description": "Fetches a single meter."
+          }
+        },
+        {
+          "name": "List Meters",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/meters",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters" ]
+            },
+            "description": "Lists all meters (ADMIN/OPERATOR/FINANCE)."
+          }
+        },
+        {
+          "name": "List Meters by Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/meters?customerId={{customerId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters" ],
+              "query": [ { "key": "customerId", "value": "{{customerId}}" } ]
+            },
+            "description": "Lists meters for a specific customer."
+          }
+        },
+        {
+          "name": "Deactivate Meter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is INACTIVE', () => pm.expect(pm.response.json().status).to.eql('INACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meters/{{meterId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters", "{{meterId}}", "status" ]
+            },
+            "description": "Deactivates a meter (ADMIN/OPERATOR). Readings can't be captured for an inactive meter; reactivated next."
+          }
+        },
+        {
+          "name": "Activate Meter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is ACTIVE', () => pm.expect(pm.response.json().status).to.eql('ACTIVE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meters/{{meterId}}/status",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "meters", "{{meterId}}", "status" ]
+            },
+            "description": "Reactivates the meter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Meter Readings",
+      "item": [
+        {
+          "name": "Capture Reading (as Operator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('readingId', res.id);",
+                  "pm.test('Consumption is current - previous', () => pm.expect(Number(res.consumption)).to.eql(120.5));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meterId\": {{meterId}},\n  \"previousReading\": 1200.000,\n  \"currentReading\": 1320.500,\n  \"readingDate\": \"{{today}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/readings",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "readings" ]
+            },
+            "description": "Captures a meter reading (OPERATOR/ADMIN). Consumption (120.5) is derived from current - previous. Current must exceed previous, and only one reading per meter per month is allowed."
+          }
+        },
+        {
+          "name": "List Readings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/readings",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "readings" ]
+            },
+            "description": "Lists all readings (ADMIN/OPERATOR/FINANCE)."
+          }
+        },
+        {
+          "name": "List Readings by Meter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{operatorAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/readings?meterId={{meterId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "readings" ],
+              "query": [ { "key": "meterId", "value": "{{meterId}}" } ]
+            },
+            "description": "Lists readings for a specific meter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Bills",
+      "item": [
+        {
+          "name": "Generate Bill (as Finance)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('billId', res.id);",
+                  "pm.collectionVariables.set('billNumber', res.billNumber);",
+                  "pm.test('Bill is PENDING', () => pm.expect(res.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/generate?readingId={{readingId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills", "generate" ],
+              "query": [ { "key": "readingId", "value": "{{readingId}}" } ]
+            },
+            "description": "Generates a bill from the captured reading using the effective tariff (FINANCE/ADMIN). On PostgreSQL this fires a trigger that records a BILL_GENERATED notification."
+          }
+        },
+        {
+          "name": "Get Bill by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/{{billId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills", "{{billId}}" ]
+            },
+            "description": "Fetches a single bill (ADMIN/FINANCE)."
+          }
+        },
+        {
+          "name": "List Bills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills" ]
+            },
+            "description": "Lists all bills (ADMIN/FINANCE)."
+          }
+        },
+        {
+          "name": "List Bills by Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills?customerId={{customerId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills" ],
+              "query": [ { "key": "customerId", "value": "{{customerId}}" } ]
+            },
+            "description": "Lists bills for a specific customer."
+          }
+        },
+        {
+          "name": "Approve Bill",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Bill is APPROVED', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/{{billId}}/approve",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills", "{{billId}}", "approve" ]
+            },
+            "description": "Approves the pending bill, making it payable (FINANCE/ADMIN)."
+          }
+        },
+        {
+          "name": "Apply Late Penalties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/apply-penalties",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "bills", "apply-penalties" ]
+            },
+            "description": "Runs the cursor-based stored procedure that adds penalties to overdue, unpaid bills and moves them to OVERDUE (FINANCE/ADMIN). PostgreSQL only. The freshly approved bill above is not overdue, so it is unaffected."
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Payments",
+      "item": [
+        {
+          "name": "Record Partial Payment (as Finance)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.test('Bill is PARTIALLY_PAID', () => pm.expect(res.billStatus).to.eql('PARTIALLY_PAID'));",
+                  "// Remember the outstanding balance so the next request can pay it off exactly.",
+                  "pm.collectionVariables.set('remainingBalance', res.billOutstandingBalance);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billNumber\": \"{{billNumber}}\",\n  \"amount\": 5000.00,\n  \"method\": \"MOBILE_MONEY\",\n  \"paymentDate\": \"{{today}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "payments" ]
+            },
+            "description": "Records a partial payment against the approved bill (FINANCE/ADMIN). The bill moves to PARTIALLY_PAID and the outstanding balance is captured for the final payment."
+          }
+        },
+        {
+          "name": "List Payments by Bill",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments?billId={{billId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "payments" ],
+              "query": [ { "key": "billId", "value": "{{billId}}" } ]
+            },
+            "description": "Lists the payments recorded against a bill (ADMIN/FINANCE)."
+          }
+        },
+        {
+          "name": "Record Final Payment (as Finance)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.test('Bill is PAID', () => pm.expect(res.billStatus).to.eql('PAID'));",
+                  "pm.test('Outstanding balance is zero', () => pm.expect(Number(res.billOutstandingBalance)).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billNumber\": \"{{billNumber}}\",\n  \"amount\": {{remainingBalance}},\n  \"method\": \"CASH\",\n  \"paymentDate\": \"{{today}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "payments" ]
+            },
+            "description": "Pays off the remaining balance. The bill becomes PAID; on PostgreSQL a PAYMENT_COMPLETED notification is generated by a trigger."
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Notifications",
+      "item": [
+        {
+          "name": "List Notifications (as Finance)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "notifications" ]
+            },
+            "description": "Lists notifications (ADMIN/FINANCE). On PostgreSQL these are created by triggers when bills are generated and paid."
+          }
+        },
+        {
+          "name": "List Notifications by Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{financeAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?customerId={{customerId}}",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "notifications" ],
+              "query": [ { "key": "customerId", "value": "{{customerId}}" } ]
+            },
+            "description": "Lists notifications for a specific customer."
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. My Account (Customer)",
+      "item": [
+        {
+          "name": "Login as Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('customerAccessToken', res.accessToken);",
+                  "pm.collectionVariables.set('customerRefreshToken', res.refreshToken);",
+                  "pm.test('Role is CUSTOMER', () => pm.expect(res.role).to.eql('CUSTOMER'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "auth", "login" ]
+            },
+            "description": "Logs in the customer account (linked to the customer profile) to access the self-service endpoints."
+          }
+        },
+        {
+          "name": "My Bills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has at least one bill', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{customerAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/bills",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "me", "bills" ]
+            },
+            "description": "The signed-in customer's own bills (CUSTOMER)."
+          }
+        },
+        {
+          "name": "My Payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{customerAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/payments",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "me", "payments" ]
+            },
+            "description": "The signed-in customer's payment history (CUSTOMER)."
+          }
+        },
+        {
+          "name": "My Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{customerAccessToken}}", "type": "string" } ] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/notifications",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "me", "notifications" ]
+            },
+            "description": "The signed-in customer's notifications (CUSTOMER)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Account / Session",
+      "item": [
+        {
+          "name": "Change Password (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "// Change-password returns a fresh token pair; keep using it.",
+                  "pm.collectionVariables.set('customerAccessToken', res.accessToken);",
+                  "pm.collectionVariables.set('customerRefreshToken', res.refreshToken);",
+                  "pm.collectionVariables.set('customerPassword', pm.collectionVariables.get('customerNewPassword'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{customerAccessToken}}", "type": "string" } ] },
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{customerPassword}}\",\n  \"newPassword\": \"{{customerNewPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/account/password",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "account", "password" ]
+            },
+            "description": "Changes the signed-in user's password (any authenticated user). Other sessions are signed out and a fresh token pair is returned."
+          }
+        },
+        {
+          "name": "Logout All Devices (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{customerAccessToken}}", "type": "string" } ] },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/account/logout-all",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "account", "logout-all" ]
+            },
+            "description": "Revokes every session for the current user (JWT required)."
+          }
+        }
+      ]
+    }
+  ]
+}
