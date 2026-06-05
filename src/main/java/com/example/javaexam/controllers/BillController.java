@@ -5,10 +5,12 @@ import com.example.javaexam.models.domains.ApiResponse;
 import com.example.javaexam.services.BillService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/bills")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Bills", description = "Generate bills from meter readings, approve them for payment, and apply penalties to overdue bills")
 public class BillController {
 
@@ -31,14 +34,14 @@ public class BillController {
     @PreAuthorize("hasAnyRole('FINANCE','ADMIN')")
     @Operation(summary = "Generate a bill from a meter reading (FINANCE/ADMIN). "
             + "Inserting the bill triggers a BILL_GENERATED notification.")
-    public BillResponse generate(@RequestParam Long readingId) {
+    public BillResponse generate(@RequestParam @Positive(message = "readingId must be a positive number") Long readingId) {
         return billService.generate(readingId);
     }
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('FINANCE','ADMIN')")
     @Operation(summary = "Approve a pending bill, making it payable (FINANCE/ADMIN)")
-    public BillResponse approve(@PathVariable Long id) {
+    public BillResponse approve(@PathVariable @Positive(message = "id must be a positive number") Long id) {
         return billService.approve(id);
     }
 
@@ -60,7 +63,7 @@ public class BillController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
     @Operation(summary = "Get a bill by id (ADMIN/FINANCE)")
-    public BillResponse get(@PathVariable Long id) {
+    public BillResponse get(@PathVariable @Positive(message = "id must be a positive number") Long id) {
         return billService.get(id);
     }
 }

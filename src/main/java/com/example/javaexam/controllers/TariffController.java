@@ -7,10 +7,12 @@ import com.example.javaexam.services.TariffService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/tariffs")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Tariffs", description = "Configure versioned tariffs with consumption tiers, service charges, VAT and penalty rates")
 public class TariffController {
 
@@ -48,7 +51,7 @@ public class TariffController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','FINANCE')")
     @Operation(summary = "Get a tariff by id (ADMIN/FINANCE)")
-    public TariffResponse get(@PathVariable Long id) {
+    public TariffResponse get(@PathVariable @Positive(message = "id must be a positive number") Long id) {
         return tariffService.get(id);
     }
 }

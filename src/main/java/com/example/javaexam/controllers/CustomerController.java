@@ -7,10 +7,12 @@ import com.example.javaexam.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/customers")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Customers", description = "Register customers and manage their details and active status")
 public class CustomerController {
 
@@ -41,14 +44,14 @@ public class CustomerController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     @Operation(summary = "Update a customer's details (ADMIN/OPERATOR)")
-    public CustomerResponse update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
+    public CustomerResponse update(@PathVariable @Positive(message = "id must be a positive number") Long id, @Valid @RequestBody CustomerRequest request) {
         return customerService.update(id, request);
     }
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Activate or deactivate a customer (ADMIN). Inactive customers cannot be billed.")
-    public CustomerResponse updateStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
+    public CustomerResponse updateStatus(@PathVariable @Positive(message = "id must be a positive number") Long id, @Valid @RequestBody StatusRequest request) {
         return customerService.updateStatus(id, request.status());
     }
 
@@ -62,7 +65,7 @@ public class CustomerController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','FINANCE')")
     @Operation(summary = "Get a customer by id (ADMIN/OPERATOR/FINANCE)")
-    public CustomerResponse get(@PathVariable Long id) {
+    public CustomerResponse get(@PathVariable @Positive(message = "id must be a positive number") Long id) {
         return customerService.get(id);
     }
 }
